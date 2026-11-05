@@ -27,7 +27,7 @@ _Son güncelleme: 2026-11-05 (2. oturum)_
 | Gizlilik: PrivacyInfo.xcprivacy, uygulama içi politika, docs/privacy.html | ✅ | Barındırma URL'si gerekli (App Store Connect) |
 | Veri güvenliği (dayanıklı JSON çözme, bozuk dosya yedeği) | ✅ Kod + uygulama testi | CI'da çalışacak |
 | CI (GitHub Actions) | ✅ ci.yml, testflight.yml | ✅ macOS derleme + testler yeşil |
-| TestFlight | ⏳ Hazır iş akışı | ❌ Engelleyiciler aşağıda |
+| TestFlight | ✅ 1.0 (103) yüklendi | Apple işleme süresi sonrası iç testte |
 
 ## Şartname karşılaştırması (ilk prompt)
 
@@ -55,15 +55,13 @@ Tamamlananlar (2026-11-05): depo `niinova22-blip/jarvis-fit` (public), CI yeşil
 85 çekirdek testi), secrets (yeni API anahtarı "JARVIS FIT GitHub CI", Admin, key BCH7KLCAZ4), bundle ID
 `com.niinova.jarvisfit`, App Store Connect kaydı "JARVIS FIT" (Türkçe, SKU jarvisfit2026). TestFlight preflight geçiyor.
 
-**Kalan tek engel:** takımın 6 dağıtım sertifikası slotu dolu (3 iOS Distribution + 3 Apple Distribution), CI
-geçici sertifika oluşturamıyor (409). Kullanılmayan bir sertifika iptal edilince
-`gh workflow run TestFlight -R niinova22-blip/jarvis-fit` tekrar çalıştırılmalı. Sertifika listesi iş akışı
-loglarında yazdırılıyor. Not: iptal, o sertifikanın özel anahtarına dayanan diğer CI hatlarını bozar; App Store'daki
-uygulamaları etkilemez.
+**TestFlight: ✅ 1.0 (103) yüklendi** (2026-11-06, run 42124407071). İç test grubu "JARVIS FIT Internal" oluşturuldu,
+ekip üyeleri eklendi. En eski Apple Distribution sertifikası (M7S64Z7B66) kullanıcının onayıyla iptal edildi; her
+çalıştırma geçici sertifikasını sonunda siliyor, slot sonraki çalıştırmalar için boş kalıyor.
+Yeni sürüm: `gh workflow run TestFlight -R niinova22-blip/jarvis-fit`.
 
 ## Sonraki adımlar (öncelik sırası)
 
-1. Dağıtım sertifikası slotu açılınca TestFlight yüklemesi.
 3. Gerçek cihazda Canlı Antrenör doğrulaması: poz kayıtlarını topla, etiketle, `Fixtures/`'a koy, eşikleri ayarla.
 4. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
    `...yearly` 79,99 USD), gizlilik politikası URL'si (docs/privacy.html barındırılmalı).
