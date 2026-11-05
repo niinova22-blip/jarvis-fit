@@ -62,7 +62,7 @@ Yeni sürüm: `gh workflow run TestFlight -R niinova22-blip/jarvis-fit`.
 
 ## Sonraki adımlar (öncelik sırası)
 
-3. Gerçek cihazda Canlı Antrenör doğrulaması: poz kayıtlarını topla, etiketle, `Fixtures/`'a koy, eşikleri ayarla.
-4. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
+1. Gerçek cihazda Canlı Antrenör doğrulaması: poz kayıtlarını topla, etiketle, `Fixtures/`'a koy, eşikleri ayarla.
+2. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
    `...yearly` 79,99 USD), gizlilik politikası URL'si (docs/privacy.html barındırılmalı).
-5. App Store adı/marka kontrolü (bkz. RESEARCH.md › Riskler).
+3. App Store adı/marka kontrolü (bkz. RESEARCH.md › Riskler).
