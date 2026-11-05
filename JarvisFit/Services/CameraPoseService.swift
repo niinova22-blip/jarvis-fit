@@ -6,7 +6,7 @@ import JarvisCore
 
 /// Converts Vision body-pose observations into JarvisCore pose frames.
 enum VisionPoseAdapter {
-    static let jointMap: [VNHumanBodyPoseObservation.JointName: Joint] = [
+    static let jointMap: [VNHumanBodyPoseObservation.JointName: JarvisCore.Joint] = [
         .nose: .nose, .leftEye: .leftEye, .rightEye: .rightEye, .leftEar: .leftEar, .rightEar: .rightEar, .neck: .neck,
         .leftShoulder: .leftShoulder, .rightShoulder: .rightShoulder, .leftElbow: .leftElbow, .rightElbow: .rightElbow,
         .leftWrist: .leftWrist, .rightWrist: .rightWrist, .root: .root, .leftHip: .leftHip, .rightHip: .rightHip,
@@ -15,7 +15,7 @@ enum VisionPoseAdapter {
 
     /// Vision uses a bottom-left origin; JarvisCore uses top-left.
     static func frame(from observation: VNHumanBodyPoseObservation, timestamp: TimeInterval, imageSize: CGSize) -> PoseFrame {
-        var keypoints: [Joint: Keypoint] = [:]
+        var keypoints: [JarvisCore.Joint: Keypoint] = [:]
         if let points = try? observation.recognizedPoints(.all) {
             for (name, point) in points {
                 guard let joint = jointMap[name] else { continue }

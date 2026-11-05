@@ -32,7 +32,7 @@ struct SkeletonOverlay: View {
     let mirrored: Bool
     var highlight: Bool
 
-    private static let bones: [(Joint, Joint)] = [
+    private static let bones: [(JarvisCore.Joint, JarvisCore.Joint)] = [
         (.leftShoulder, .rightShoulder), (.leftShoulder, .leftElbow), (.leftElbow, .leftWrist),
         (.rightShoulder, .rightElbow), (.rightElbow, .rightWrist), (.leftShoulder, .leftHip), (.rightShoulder, .rightHip),
         (.leftHip, .rightHip), (.leftHip, .leftKnee), (.leftKnee, .leftAnkle), (.rightHip, .rightKnee), (.rightKnee, .rightAnkle),
@@ -44,7 +44,7 @@ struct SkeletonOverlay: View {
             guard let frame else { return }
             let scale = max(size.width / imageSize.width, size.height / imageSize.height)
             let offset = CGPoint(x: (size.width - imageSize.width * scale) / 2, y: (size.height - imageSize.height * scale) / 2)
-            func map(_ joint: Joint) -> CGPoint? {
+            func map(_ joint: JarvisCore.Joint) -> CGPoint? {
                 guard let p = frame.imagePoint(joint) else { return nil }
                 var x = p.x * imageSize.width * scale + offset.x
                 if mirrored { x = size.width - x }
@@ -59,7 +59,7 @@ struct SkeletonOverlay: View {
                 }
             }
             context.stroke(path, with: .color(color.opacity(0.85)), style: StrokeStyle(lineWidth: 4, lineCap: .round))
-            for joint in Joint.allCases where ![.leftEye, .rightEye, .leftEar, .rightEar].contains(joint) {
+            for joint in JarvisCore.Joint.allCases where ![.leftEye, .rightEye, .leftEar, .rightEar].contains(joint) {
                 if let p = map(joint) {
                     context.fill(Path(ellipseIn: CGRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10)), with: .color(.white))
                 }

@@ -96,7 +96,7 @@ enum BodyScanAnalyzer {
     }
 
     static func landmarks(frame: PoseFrame, mask: SilhouetteMask, front: Bool) -> ScanLandmarks? {
-        func px(_ joint: Joint) -> (x: Double, y: Double)? {
+        func px(_ joint: JarvisCore.Joint) -> (x: Double, y: Double)? {
             guard let p = frame.imagePoint(joint, minConfidence: 0.2) else { return nil }
             return (p.x * Double(mask.width), p.y * Double(mask.height))
         }

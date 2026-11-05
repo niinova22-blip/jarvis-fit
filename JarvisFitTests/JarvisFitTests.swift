@@ -47,7 +47,7 @@ final class JarvisFitTests: XCTestCase {
     }
 
     func testVisionJointMapCoversAllJoints() {
-        XCTAssertEqual(Set(VisionPoseAdapter.jointMap.values), Set(Joint.allCases))
+        XCTAssertEqual(Set(VisionPoseAdapter.jointMap.values), Set(JarvisCore.Joint.allCases))
     }
 
     @MainActor
