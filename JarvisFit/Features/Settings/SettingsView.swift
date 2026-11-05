@@ -14,7 +14,10 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section(model.t("Abonelik", "Subscription")) {
-                    if model.isPremium {
+                    if AppModel.testPhaseUnlocked {
+                        Label(model.t("Test sürümü: tüm Premium özellikler açık", "Test build: all Premium features unlocked"),
+                              systemImage: "hammer.fill").foregroundStyle(Theme.success)
+                    } else if model.isPremium {
                         Label(model.t("Premium aktif", "Premium active"), systemImage: "checkmark.seal.fill").foregroundStyle(Theme.success)
                         Link(model.t("Aboneliği yönet", "Manage subscription"), destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
                     } else {

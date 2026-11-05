@@ -330,7 +330,11 @@ final class AppModel: ObservableObject {
 
     // MARK: Free tier
 
-    var isPremium: Bool { subscriptions.isPremium }
+    /// Test phase: every premium feature is unlocked for TestFlight testers. Set to false before
+    /// the App Store release (the paywall and free-tier limits then apply again).
+    static let testPhaseUnlocked = true
+
+    var isPremium: Bool { Self.testPhaseUnlocked || subscriptions.isPremium }
 
     static let freeLiveWorkoutsPerWeek = 3
     static let freeFoodScansPerDay = 3
