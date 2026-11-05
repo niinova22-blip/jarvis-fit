@@ -44,6 +44,23 @@ public struct SetResult: Codable, Hashable, Sendable {
     public var endedAt: TimeInterval
     public var endReason: SetEndReason
 
+    public init(exercise: TrackedExercise, setNumber: Int, target: Int, reps: Int, holdSeconds: Double, formIssues: [FormIssue],
+                partialReps: Int, averageRepDuration: Double?, slowdown: Double?, startedAt: TimeInterval, endedAt: TimeInterval,
+                endReason: SetEndReason) {
+        self.exercise = exercise
+        self.setNumber = setNumber
+        self.target = target
+        self.reps = reps
+        self.holdSeconds = holdSeconds
+        self.formIssues = formIssues
+        self.partialReps = partialReps
+        self.averageRepDuration = averageRepDuration
+        self.slowdown = slowdown
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.endReason = endReason
+    }
+
     public var achieved: Int { exercise.isTimed ? Int(holdSeconds.rounded()) : reps }
 }
 
@@ -54,6 +71,15 @@ public struct WorkoutSummary: Codable, Hashable, Sendable {
     public var endedAt: TimeInterval
     public var completed: Bool
     public var safetyConcern: SafetyConcern?
+
+    public init(title: LocalizedText, sets: [SetResult], startedAt: TimeInterval, endedAt: TimeInterval, completed: Bool, safetyConcern: SafetyConcern? = nil) {
+        self.title = title
+        self.sets = sets
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.completed = completed
+        self.safetyConcern = safetyConcern
+    }
 
     public var totalReps: Int { sets.reduce(0) { $0 + $1.reps } }
     public var durationMinutes: Int { max(1, Int(((endedAt - startedAt) / 60).rounded())) }

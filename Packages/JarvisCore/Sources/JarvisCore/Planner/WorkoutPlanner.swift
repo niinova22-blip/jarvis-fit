@@ -20,6 +20,11 @@ public struct PlannedExercise: Codable, Hashable, Sendable, Identifiable {
     public var prescription: Prescription
     public var id: String { exerciseId }
 
+    public init(exerciseId: String, prescription: Prescription) {
+        self.exerciseId = exerciseId
+        self.prescription = prescription
+    }
+
     public var definition: ExerciseDefinition? { ExerciseLibrary.definition(exerciseId) }
 }
 
@@ -59,6 +64,13 @@ public struct PlannedWorkout: Codable, Hashable, Sendable, Identifiable {
     public var weekday: Weekday
     public var kind: SessionKind
     public var exercises: [PlannedExercise]
+
+    public init(id: String, weekday: Weekday, kind: SessionKind, exercises: [PlannedExercise]) {
+        self.id = id
+        self.weekday = weekday
+        self.kind = kind
+        self.exercises = exercises
+    }
 
     public var title: LocalizedText { kind.title }
 

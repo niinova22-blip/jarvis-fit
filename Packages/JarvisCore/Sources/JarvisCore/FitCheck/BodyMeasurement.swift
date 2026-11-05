@@ -103,6 +103,14 @@ public struct MeasurementEstimate: Codable, Hashable, Sendable {
     public var highCm: Double
     public var calibrated: Bool
 
+    public init(site: MeasurementSite, valueCm: Double, lowCm: Double, highCm: Double, calibrated: Bool) {
+        self.site = site
+        self.valueCm = valueCm
+        self.lowCm = lowCm
+        self.highCm = highCm
+        self.calibrated = calibrated
+    }
+
     /// Display string such as "≈ 84 cm (81–87)".
     public func display() -> String {
         "≈ \(Int(valueCm.rounded())) cm (\(Int(lowCm.rounded()))–\(Int(highCm.rounded())))"
@@ -218,6 +226,12 @@ public struct PostureReport: Codable, Hashable, Sendable {
     public var hipTiltDegrees: Double?
     /// Horizontal ear-to-shoulder offset relative to torso length (side photo); larger = head further forward.
     public var forwardHeadRatio: Double?
+
+    public init(shoulderTiltDegrees: Double? = nil, hipTiltDegrees: Double? = nil, forwardHeadRatio: Double? = nil) {
+        self.shoulderTiltDegrees = shoulderTiltDegrees
+        self.hipTiltDegrees = hipTiltDegrees
+        self.forwardHeadRatio = forwardHeadRatio
+    }
 
     public static func analyze(front: PoseFrame?, side: PoseFrame?) -> PostureReport {
         var report = PostureReport()

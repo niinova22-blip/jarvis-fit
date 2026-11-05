@@ -1,0 +1,156 @@
+name: TestFlight
+
+# Builds, signs and uploads to TestFlight. Signing material is created for this run only through
+# the App Store Connect API and removed at the end (scripts/asc_signing.py).
+# Required secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  upload:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APPLE_TEAM_ID: ML3UZXMU3D
+      BUNDLE_ID: com.niinova.jarvisfit
+      APP_NAME: JarvisFit
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        run: |
+          echo "SIGNING_DIR=$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name secret is not set (see docs/RELEASE.md)"
+              exit 1
+            fi
+          done
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Tools
+        run: |
+          brew install xcodegen
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography
+          xcodebuild -version
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: App Store Connect preflight (bundle ID, app record)
+        run: python3 scripts/asc_signing.py preflight
+
+      - name: Temporary signing certificate and profile
+        run: python3 scripts/asc_signing.py create "$SIGNING_DIR"
+
+      - name: Install into keychain
+        run: |
+          PASSWORD=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['password'])" "$SIGNING_DIR/signing.json")
+          PROFILE_NAME=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['profileName'])" "$SIGNING_DIR/signing.json")
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$SIGNING_DIR/cert.p12" -P "$PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk 'NR==1 {print $2}')
+          if [ -z "$IDENTITY" ]; then echo "::error::No signing identity"; exit 1; fi
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$dir"
+            cp "$SIGNING_DIR/profile.mobileprovision" "$dir/jarvisfit-appstore.mobileprovision"
+          done
+
+      - name: Archive
+        run: |
+          set -o pipefail
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          xcodebuild archive \
+            -project JarvisFit.xcodeproj \
+            -scheme JarvisFit \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/JarvisFit.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -E "error:" "$RUNNER_TEMP/archive.log" | sort -u | head -100; tail -30 "$RUNNER_TEMP/archive.log"; exit 1; }
+          tail -5 "$RUNNER_TEMP/archive.log"
+
+      - name: Export IPA and verify signature
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>$SIGN_IDENTITY</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key><string>$PROFILE_NAME</string>
+            </dict>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/JarvisFit.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export"
+          cd "$RUNNER_TEMP/export"
+          rm -rf ipa && mkdir ipa && unzip -q "$APP_NAME.ipa" -d ipa
+          APP="ipa/Payload/$APP_NAME.app"
+          # The team name contains a non-ASCII character; re-sign with a Team ID designated
+          # requirement if codesign's generated one does not match the certificate (ITMS-90035).
+          if ! codesign --verify --deep --strict "$APP" 2>/dev/null; then
+            codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/entitlements.plist" 2>/dev/null
+            codesign --force --sign "$SIGN_IDENTITY" --keychain "$KEYCHAIN" \
+              --entitlements "$RUNNER_TEMP/entitlements.plist" \
+              --requirements "=designated => anchor apple generic and identifier \"$BUNDLE_ID\" and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\" and certificate 1[field.1.2.840.113635.100.6.2.1] /* exists */" \
+              "$APP"
+            rm "$APP_NAME.ipa"
+            (cd ipa && zip -qry "../$APP_NAME.ipa" .)
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Upload to TestFlight
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$ASC_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          xcrun altool --upload-app -f "$RUNNER_TEMP/export/$APP_NAME.ipa" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/altool.log"
+          if grep -qE "UPLOAD FAILED|Failed to upload" "$RUNNER_TEMP/altool.log"; then
+            echo "::error::TestFlight upload rejected (details above)"
+            exit 1
+          fi
+
+      - name: Internal TestFlight group
+        run: python3 scripts/asc_signing.py testflight
+
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          python3 scripts/asc_signing.py cleanup "$SIGNING_DIR" || true
+          rm -rf ~/.appstoreconnect/private_keys
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/jarvisfit-appstore.mobileprovision" \
+                "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/jarvisfit-appstore.mobileprovision"
+          if [ -n "$KEYCHAIN" ]; then security delete-keychain "$KEYCHAIN" || true; fi

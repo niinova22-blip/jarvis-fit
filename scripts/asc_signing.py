@@ -8,6 +8,7 @@ Environment: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY (contents of the .p8 fil
   python scripts/asc_signing.py create  <out-dir>   # cert.p12, profile.mobileprovision, signing.json
   python scripts/asc_signing.py cleanup <out-dir>   # deletes the profile, revokes the certificate
   python scripts/asc_signing.py testflight          # ensures an internal group that gets every build
+  python scripts/asc_signing.py preflight           # registers the bundle ID if needed, checks the app record
 """
 import base64
 import json
@@ -27,7 +28,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.x509.oid import NameOID
 
 API = "https://api.appstoreconnect.apple.com/v1"
-INTERNAL_GROUP = "Strengthspan Internal"
+INTERNAL_GROUP = "JARVIS FIT Internal"
 
 
 def token() -> str:
@@ -67,12 +68,31 @@ def bundle_id_resource(identifier: str) -> str:
     sys.exit(f"::error::Bundle ID {identifier} is not registered")
 
 
+def preflight() -> None:
+    """Registers the bundle ID when missing and verifies that the App Store Connect app exists."""
+    identifier = os.environ["BUNDLE_ID"]
+    result = request("GET", f"/bundleIds?filter[identifier]={identifier}&limit=200")
+    if not any(item["attributes"]["identifier"] == identifier for item in result.get("data", [])):
+        request("POST", "/bundleIds", {"data": {
+            "type": "bundleIds",
+            "attributes": {"identifier": identifier, "name": "JARVIS FIT", "platform": "IOS"},
+        }})
+        print(f"Registered bundle ID {identifier}")
+    else:
+        print(f"Bundle ID {identifier} is registered")
+    apps = request("GET", f"/apps?filter[bundleId]={identifier}")["data"]
+    if not apps:
+        sys.exit(f"::error::No App Store Connect app uses {identifier}. Create it once in App Store Connect "
+                 f"(Apps > + > New App, bundle ID {identifier}); the API cannot create app records.")
+    print(f"App record: {apps[0]['attributes']['name']} ({apps[0]['id']})")
+
+
 def create(out: pathlib.Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     csr = (
         x509.CertificateSigningRequestBuilder()
-        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Strengthspan CI")]))
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "JARVIS FIT CI")]))
         .sign(key, hashes.SHA256())
     )
     csr_b64 = base64.b64encode(csr.public_bytes(serialization.Encoding.DER)).decode()
@@ -86,7 +106,7 @@ def create(out: pathlib.Path) -> None:
     cert_der = base64.b64decode(certificate["attributes"]["certificateContent"])
     cert = x509.load_der_x509_certificate(cert_der)
 
-    profile_name = f"Strengthspan AppStore CI {os.environ.get('GITHUB_RUN_ID', int(time.time()))}"
+    profile_name = f"JARVIS FIT AppStore CI {os.environ.get('GITHUB_RUN_ID', int(time.time()))}"
     profile = request("POST", "/profiles", {"data": {
         "type": "profiles",
         "attributes": {"name": profile_name, "profileType": "IOS_APP_STORE"},
@@ -105,7 +125,7 @@ def create(out: pathlib.Path) -> None:
         .hmac_hash(hashes.SHA1())
         .build(password.encode())
     )
-    (out / "cert.p12").write_bytes(pkcs12.serialize_key_and_certificates(b"strengthspan-ci", key, cert, None, encryption))
+    (out / "cert.p12").write_bytes(pkcs12.serialize_key_and_certificates(b"jarvisfit-ci", key, cert, None, encryption))
     (out / "profile.mobileprovision").write_bytes(base64.b64decode(profile["attributes"]["profileContent"]))
     (out / "signing.json").write_text(json.dumps({
         "certificateId": certificate["id"],
@@ -180,5 +200,7 @@ if __name__ == "__main__":
         cleanup(pathlib.Path(sys.argv[2]))
     elif command == "testflight":
         testflight()
+    elif command == "preflight":
+        preflight()
     else:
         sys.exit(__doc__)
