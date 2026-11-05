@@ -99,10 +99,24 @@ def create(out: pathlib.Path) -> None:
 
     # The team already holds the maximum number of Apple Distribution certificates (other projects'
     # CI); an iOS Distribution certificate signs App Store builds the same way and has a free slot.
-    certificate = request("POST", "/certificates", {"data": {
-        "type": "certificates",
-        "attributes": {"certificateType": "IOS_DISTRIBUTION", "csrContent": csr_b64},
-    }})["data"]
+    certificate = None
+    for cert_type in ("IOS_DISTRIBUTION", "DISTRIBUTION"):
+        result = request("POST", "/certificates", {"data": {
+            "type": "certificates",
+            "attributes": {"certificateType": cert_type, "csrContent": csr_b64},
+        }}, tolerate=409)
+        if result:
+            certificate = result["data"]
+            print(f"Created temporary {cert_type} certificate")
+            break
+        print(f"No free {cert_type} slot (409)")
+    if certificate is None:
+        existing = request("GET", "/certificates?limit=200") or {"data": []}
+        for c in existing["data"]:
+            a = c["attributes"]
+            if a.get("certificateType") in ("IOS_DISTRIBUTION", "DISTRIBUTION"):
+                print(f"  {c['id']}  {a.get('certificateType')}  {a.get('name')}  expires {a.get('expirationDate')}")
+        sys.exit("::error::All distribution certificate slots are in use; revoke an unused one in Certificates, Identifiers & Profiles.")
     cert_der = base64.b64decode(certificate["attributes"]["certificateContent"])
     cert = x509.load_der_x509_certificate(cert_der)
 
