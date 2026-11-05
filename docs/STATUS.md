@@ -11,7 +11,7 @@ _Son güncelleme: 2026-11-05 (2. oturum)_
 | Eller serbest oturum motoru | ✅ Kod + uçtan uca simülasyon testi | ⚠️ Cihazda doğrulanmadı |
 | Poz kaydı + tekrar oynatma (gerçek veriyle doğrulama) | ✅ Kod + testler | Kullanıcı kaydı bekleniyor |
 | Hafif mod (eski cihaz / ısı / düşük güç) | ✅ Politika + testler, kamera entegrasyonu | ❌ iPhone 12/13'te ölçülmedi |
-| iOS uygulaması (SwiftUI) | ✅ Kod yazıldı, elle gözden geçirildi | ❌ Henüz derlenmedi (macOS gerekir → GitHub Actions) |
+| iOS uygulaması (SwiftUI) | ✅ Kod | ✅ Xcode 26.3 ile derlendi, 6 uygulama testi geçti |
 | Kamera + Vision poz | ✅ Kod | ❌ Cihaz testi gerekli |
 | Ses (STT/TTS, AEC, araya girme) | ✅ Kod | ❌ Cihaz testi gerekli |
 | Sesli onboarding (cevapları konuşarak verme) | ✅ Ayrıştırıcı + testler + ekran entegrasyonu | ❌ Cihaz testi gerekli |
@@ -26,7 +26,7 @@ _Son güncelleme: 2026-11-05 (2. oturum)_
 | StoreKit 2 abonelik | ✅ Kod + .storekit dosyası | ❌ App Store Connect'te ürünler oluşturulmadı |
 | Gizlilik: PrivacyInfo.xcprivacy, uygulama içi politika, docs/privacy.html | ✅ | Barındırma URL'si gerekli (App Store Connect) |
 | Veri güvenliği (dayanıklı JSON çözme, bozuk dosya yedeği) | ✅ Kod + uygulama testi | CI'da çalışacak |
-| CI (GitHub Actions) | ✅ ci.yml, testflight.yml | ❌ Depo henüz GitHub'a gönderilmedi |
+| CI (GitHub Actions) | ✅ ci.yml, testflight.yml | ✅ macOS derleme + testler yeşil |
 | TestFlight | ⏳ Hazır iş akışı | ❌ Engelleyiciler aşağıda |
 
 ## Şartname karşılaştırması (ilk prompt)
@@ -51,19 +51,19 @@ _Son güncelleme: 2026-11-05 (2. oturum)_
 
 ## TestFlight için kalan engelleyiciler
 
-1. **GitHub'a gönderme** (otomatik izin sistemi engelledi; kullanıcı çalıştırmalı):
-   `gh repo create jarvis-fit --private --source . --remote origin --push`
-   - Private depoda macOS dakikaları ücretli kotadan düşer (macOS = 10x). Diğer uygulama depoların public.
-2. **Gizli anahtarlar**: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (App Store Connect API anahtarı, Admin
-   rolü). strengthspan deposundaki anahtar kullanılabilir: `gh secret set ... -R niinova22-blip/jarvis-fit`.
-3. **App Store Connect uygulama kaydı**: Bundle ID `com.niinova.jarvisfit` (preflight adımı API ile kaydeder).
-   Uygulama kaydı API ile oluşturulamaz: App Store Connect > Uygulamalar > + > Yeni Uygulama.
-4. İş akışını çalıştır: `gh workflow run TestFlight -R niinova22-blip/jarvis-fit`.
+Tamamlananlar (2026-11-05): depo `niinova22-blip/jarvis-fit` (public), CI yeşil (iOS derleme + 6 uygulama testi +
+85 çekirdek testi), secrets (yeni API anahtarı "JARVIS FIT GitHub CI", Admin, key BCH7KLCAZ4), bundle ID
+`com.niinova.jarvisfit`, App Store Connect kaydı "JARVIS FIT" (Türkçe, SKU jarvisfit2026). TestFlight preflight geçiyor.
+
+**Kalan tek engel:** takımın 6 dağıtım sertifikası slotu dolu (3 iOS Distribution + 3 Apple Distribution), CI
+geçici sertifika oluşturamıyor (409). Kullanılmayan bir sertifika iptal edilince
+`gh workflow run TestFlight -R niinova22-blip/jarvis-fit` tekrar çalıştırılmalı. Sertifika listesi iş akışı
+loglarında yazdırılıyor. Not: iptal, o sertifikanın özel anahtarına dayanan diğer CI hatlarını bozar; App Store'daki
+uygulamaları etkilemez.
 
 ## Sonraki adımlar (öncelik sırası)
 
-1. CI'da iOS derleme hatalarını düzelt (kod ilk kez macOS'ta derlenecek).
-2. TestFlight yüklemesi.
+1. Dağıtım sertifikası slotu açılınca TestFlight yüklemesi.
 3. Gerçek cihazda Canlı Antrenör doğrulaması: poz kayıtlarını topla, etiketle, `Fixtures/`'a koy, eşikleri ayarla.
 4. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
    `...yearly` 79,99 USD), gizlilik politikası URL'si (docs/privacy.html barındırılmalı).
