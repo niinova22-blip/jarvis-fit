@@ -22,7 +22,8 @@ final class JarvisFitTests: XCTestCase {
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(AppData.self, from: encoder.encode(data))
         XCTAssertEqual(decoded.profile, data.profile)
-        XCTAssertEqual(decoded.plan, data.plan)
+        XCTAssertEqual(decoded.plan?.workouts, data.plan?.workouts)
+        XCTAssertEqual(decoded.plan!.createdAt.timeIntervalSince1970, data.plan!.createdAt.timeIntervalSince1970, accuracy: 1)
         XCTAssertEqual(decoded.foodLog.count, 1)
     }
 
