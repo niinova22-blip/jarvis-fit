@@ -135,7 +135,7 @@ final class AppModel: ObservableObject {
             let grouped = Dictionary(grouping: summary.sets, by: \.exercise)
             for (exercise, sets) in grouped {
                 let exerciseId = planned?.exercises.first { $0.definition?.tracked == exercise }?.exerciseId
-                    ?? ExerciseLibrary.all.first { $0.tracked == exercise && $0.equipment.isEmpty }?.id ?? exercise.rawValue
+                    ?? WorkoutPlanView.definitionId(for: exercise)
                 let target = sets.first?.target ?? 0
                 data.performances.append(ExercisePerformance(exerciseId: exerciseId, date: now, sets: sets.map(\.achieved),
                                                              targetReps: target, formIssueCount: sets.reduce(0) { $0 + $1.formIssues.count }))

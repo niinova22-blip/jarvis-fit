@@ -183,7 +183,9 @@ struct DashboardView: View {
                                 .fill(done ? Theme.success : planned ? Theme.accentSoft : Theme.surfaceRaised)
                                 .overlay(Circle().stroke(day == Date().isoWeekday ? Theme.accent : .clear, lineWidth: 2))
                                 .frame(width: 30, height: 30)
-                                .overlay(done ? Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.black) : nil)
+                                .overlay {
+                                    if done { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.black) }
+                                }
                             Text(shortDay(day)).font(Theme.caption).foregroundStyle(Theme.textSecondary)
                         }
                         .frame(maxWidth: .infinity)

@@ -17,7 +17,7 @@ struct WorkoutPlanView: View {
                         }
                     }
                 }
-                ForEach(model.data.plan?.workouts.sorted { $0.weekday < $1.weekday } ?? []) { workout in
+                ForEach(model.data.plan?.workouts.sorted(by: { $0.weekday < $1.weekday }) ?? []) { workout in
                     Section {
                         ForEach(workout.exercises) { planned in
                             exerciseRow(planned, in: workout)
@@ -52,7 +52,7 @@ struct WorkoutPlanView: View {
                             guard model.canStartLiveWorkout() else { showPaywall = true; return }
                             let item = LiveWorkoutItem(exercise: exercise, sets: 3, target: exercise.isTimed ? 30 : 10, restSeconds: 60)
                             let workout = PlannedWorkout(id: "free-\(exercise.rawValue)", weekday: Date().isoWeekday, kind: .fullBodyA,
-                                                         exercises: [PlannedExercise(exerciseId: ExerciseLibrary.all.first { $0.tracked == exercise && $0.equipment.isEmpty }?.id ?? "squat",
+                                                         exercises: [PlannedExercise(exerciseId: Self.definitionId(for: exercise),
                                                                                      prescription: Prescription(sets: item.sets, repRange: item.target...item.target + 4, targetReps: item.target, restSeconds: item.restSeconds))])
                             model.startWorkout(workout)
                         } label: {
@@ -109,6 +109,12 @@ struct WorkoutPlanView: View {
             }
         }
         .listRowBackground(Theme.surface)
+    }
+
+    /// Library exercise for a tracked movement (bodyweight version preferred).
+    static func definitionId(for exercise: TrackedExercise) -> String {
+        let candidates = ExerciseLibrary.all.filter { $0.tracked == exercise }
+        return (candidates.first { $0.equipment.isEmpty } ?? candidates.first)?.id ?? exercise.rawValue
     }
 
     private func dayName(_ day: Int) -> String {
