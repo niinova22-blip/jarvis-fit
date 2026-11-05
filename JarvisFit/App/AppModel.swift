@@ -68,16 +68,54 @@ final class AppModel: ObservableObject {
         guard let profile = data.profile else { return nil }
         return AssistantContext(profile: profile, session: session, plan: data.plan, todayWeekday: Date().isoWeekday,
                                 nutrition: nutritionToday, lastWorkout: data.workoutLogs.last, workoutsThisWeek: workoutsThisWeek,
-                                memories: data.memoryEnabled ? data.memories : [])
+                                memories: data.memoryEnabled && isPremium ? data.memories : [],
+                                weeklyReport: isPremium ? weeklyReport(weekStart: Date().startOfWeek) : nil)
+    }
+
+    private var nutritionDays: [(date: Date, totals: Macros)] {
+        Dictionary(grouping: data.foodLog, by: { $0.date.dayKey }).map { _, entries in
+            (date: entries[0].date, totals: entries.reduce(Macros.zero) { $0 + $1.macros })
+        }
+    }
+
+    func weeklyReport(weekStart: Date) -> WeeklyReport? {
+        guard let targets else { return nil }
+        return WeeklyReport.make(weekStart: weekStart, plan: data.plan, workouts: data.workoutLogs, nutritionDays: nutritionDays,
+                                 targets: targets, weights: data.weights)
+    }
+
+    /// Last week's report, shown once at the start of a new week (if the user trained before).
+    var pendingWeeklyReport: WeeklyReport? {
+        let thisWeek = Date().startOfWeek
+        guard isPremium, data.settings.weeklyReport, data.lastWeeklyReportWeek != thisWeek.dayKey,
+              data.workoutLogs.contains(where: { $0.date < thisWeek }),
+              let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: thisWeek) else { return nil }
+        return weeklyReport(weekStart: lastWeek)
+    }
+
+    func markWeeklyReportSeen() { mutate { $0.lastWeeklyReportWeek = Date().startOfWeek.dayKey } }
+
+    var motivation: LocalizedText? {
+        guard let profile = data.profile else { return nil }
+        let recentBest = data.workoutLogs.last.flatMap { last -> TrackedExercise? in
+            let earlier = data.workoutLogs.dropLast()
+            return last.summary.sets.first { set in
+                let previous = earlier.flatMap(\.summary.sets).filter { $0.exercise == set.exercise }.map(\.achieved).max()
+                return previous.map { set.achieved > $0 } ?? false
+            }?.exercise
+        }
+        let dayIndex = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
+        let text = Motivation.message(personality: profile.personality, dayIndex: dayIndex,
+                                      streakWeeks: ProgressAnalytics.weekStreak(workouts: data.workoutLogs, upTo: Date()),
+                                      recentPersonalBest: recentBest, workoutsThisWeek: workoutsThisWeek)
+        return text.tr.isEmpty ? nil : text
     }
 
     var recommendations: [Recommendation] {
-        guard let profile = data.profile, let plan = data.plan, let targets else { return [] }
-        let days = Dictionary(grouping: data.foodLog, by: { $0.date.dayKey }).map { _, entries in
-            (date: entries[0].date, totals: entries.reduce(Macros.zero) { $0 + $1.macros })
-        }
+        // Adaptive suggestions are a premium feature.
+        guard isPremium, let profile = data.profile, let plan = data.plan, let targets else { return [] }
         let all = AdaptiveEngine().recommendations(profile: profile, plan: plan, weights: data.weights, workouts: data.workoutLogs,
-                                                   nutritionDays: days, targets: targets, performances: data.performances)
+                                                   nutritionDays: nutritionDays, targets: targets, performances: data.performances)
         // A dismissed suggestion stays hidden for 7 days.
         return all.filter { rec in
             guard let dismissed = data.dismissedRecommendations[rec.id] else { return true }
@@ -128,6 +166,7 @@ final class AppModel: ObservableObject {
             for set in log.summary.sets { previousBest[set.exercise] = max(previousBest[set.exercise] ?? 0, set.achieved) }
         }
         let language = self.language
+        let premium = isPremium
         mutate { data in
             data.workoutLogs.append(WorkoutLog(date: now, summary: summary, plannedWorkoutId: planned?.id))
             data.usage.liveWorkoutDates.append(now)
@@ -140,7 +179,7 @@ final class AppModel: ObservableObject {
                 data.performances.append(ExercisePerformance(exerciseId: exerciseId, date: now, sets: sets.map(\.achieved),
                                                              targetReps: target, formIssueCount: sets.reduce(0) { $0 + $1.formIssues.count }))
             }
-            if data.memoryEnabled {
+            if data.memoryEnabled && premium {
                 data.memories += MemoryExtractor.achievements(from: summary, previousBest: previousBest, language: language, date: now)
                 // Remember exercises with repeated form issues as struggles (once).
                 for set in summary.sets where set.formIssues.count >= 2 {
@@ -150,8 +189,9 @@ final class AppModel: ObservableObject {
                     }
                 }
             }
-            // Progression for the next time this workout comes up.
-            if let planned, let profile = data.profile, var plan = data.plan,
+            // Progression for the next time this workout comes up (adaptive planning is premium;
+            // free users keep their basic plan and can still edit it).
+            if premium, let planned, let profile = data.profile, var plan = data.plan,
                let index = plan.workouts.firstIndex(where: { $0.id == planned.id }) {
                 for (i, exercise) in plan.workouts[index].exercises.enumerated() {
                     let decision = ProgressionEngine.decide(exerciseId: exercise.exerciseId, prescription: exercise.prescription,
@@ -226,6 +266,12 @@ final class AppModel: ObservableObject {
                     data.plan = plan
                 }
             case .reminderTime(let minute): data.profile?.preferredTrainingMinute = minute
+            case .rescheduleWorkout(let workoutId, let weekday):
+                if var plan = data.plan, let w = plan.workouts.firstIndex(where: { $0.id == workoutId }),
+                   !plan.workouts.contains(where: { $0.weekday == weekday }) {
+                    plan.workouts[w].weekday = weekday
+                    data.plan = plan
+                }
             case .increaseProtein, .addRestDay, .progression: break
             }
             data.dismissedRecommendations[rec.id] = Date()
@@ -255,7 +301,7 @@ final class AppModel: ObservableObject {
 
     // Memory
     func addMemory(_ item: MemoryItem) {
-        guard data.memoryEnabled else { return }
+        guard data.memoryEnabled, isPremium else { return }
         mutate { data in
             if !data.memories.contains(where: { $0.text.lowercased() == item.text.lowercased() }) { data.memories.append(item) }
         }

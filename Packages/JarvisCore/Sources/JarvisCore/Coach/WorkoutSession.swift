@@ -179,6 +179,9 @@ public struct WorkoutSessionEngine {
 
     public var currentItem: LiveWorkoutItem? { plan.items.indices.contains(itemIndex) ? plan.items[itemIndex] : nil }
 
+    /// Camera view chosen for the current exercise during positioning.
+    public var cameraView: CameraView { lockedView }
+
     // MARK: Lifecycle
 
     public mutating func start(at time: TimeInterval) -> [CoachCue] {

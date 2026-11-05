@@ -33,6 +33,7 @@ public enum RecommendationChange: Codable, Hashable, Sendable {
     case addRestDay
     case reminderTime(minuteOfDay: Int)
     case progression(exerciseId: String, decision: String)
+    case rescheduleWorkout(workoutId: String, toWeekday: Int)
 }
 
 public struct Recommendation: Codable, Hashable, Identifiable, Sendable {
@@ -63,6 +64,14 @@ public struct AdaptiveEngine: Sendable {
         }
         return den > 0 ? num / den : nil
     }
+
+    static func isoWeekday(_ date: Date) -> Weekday {
+        let weekday = Calendar.current.component(.weekday, from: date)
+        return (weekday + 5) % 7 + 1
+    }
+
+    static let dayNames = (tr: ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"],
+                           en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
 
     /// Desired weekly weight change range as a fraction of body weight.
     static func targetRate(_ goal: FitnessGoal) -> ClosedRange<Double> {
@@ -163,6 +172,24 @@ public struct AdaptiveEngine: Sendable {
                     id: "reminder", title: LocalizedText(tr: "Hatırlatmayı \(rounded / 60):\(String(format: "%02d", rounded % 60))'a al", en: "Move reminder to \(rounded / 60):\(String(format: "%02d", rounded % 60))"),
                     reason: LocalizedText(tr: "Antrenmanlarını genelde bu saatte yapıyorsun.", en: "You usually train around this time."),
                     change: .reminderTime(minuteOfDay: rounded)))
+            }
+        }
+
+        // 7. Missed workout earlier this week → move it to a free day that respects recovery.
+        let today = Self.isoWeekday(now)
+        let weekStart = Calendar.current.startOfDay(for: now).addingTimeInterval(-Double(today - 1) * day)
+        if let missed = MissedWorkoutDetector.missed(plan: plan, workouts: workouts, today: today, weekStart: weekStart).last {
+            var occupied = plan
+            occupied.workouts.removeAll { $0.id == missed.id }
+            if let target = ScheduleRules.rescheduleDay(for: missed, plan: occupied, today: today) {
+                let dayTR = Self.dayNames.tr[target - 1], dayEN = Self.dayNames.en[target - 1]
+                result.append(Recommendation(
+                    id: "move-\(missed.id)-\(target)",
+                    title: LocalizedText(tr: "Kaçırdığın \(missed.title.tr) antrenmanını \(dayTR) gününe taşı",
+                                         en: "Move the missed \(missed.title.en) workout to \(dayEN)"),
+                    reason: LocalizedText(tr: "Bu antrenmanı kaçırdın. \(dayTR) boş ve aynı kas gruplarını çalıştıran antrenmanlara 48 saatten yakın değil.",
+                                          en: "You missed this workout. \(dayEN) is free and keeps 48 h from sessions training the same muscles."),
+                    change: .rescheduleWorkout(workoutId: missed.id, toWeekday: target)))
             }
         }
         return result

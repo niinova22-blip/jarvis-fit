@@ -86,7 +86,7 @@ struct PaywallView: View {
                     HStack {
                         Link(model.t("Kullanım Koşulları", "Terms of Use"), destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                         Spacer()
-                        Link(model.t("Gizlilik", "Privacy"), destination: URL(string: "https://niinova22-blip.github.io/jarvis-fit/privacy.html")!)
+                        NavigationLink(model.t("Gizlilik Politikası", "Privacy Policy")) { PrivacyPolicyView() }
                     }
                     .font(Theme.caption)
                 }

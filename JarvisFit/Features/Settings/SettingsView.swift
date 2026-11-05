@@ -69,6 +69,10 @@ struct SettingsView: View {
                 Section(model.t("Kamera ve bildirimler", "Camera & notifications")) {
                     Toggle(model.t("Ön kamerayı kullan", "Use front camera"),
                            isOn: Binding(get: { model.data.settings.useFrontCamera }, set: { v in model.updateSettings { $0.useFrontCamera = v } }))
+                    Picker(model.t("Performans", "Performance"), selection: Binding(get: { model.data.settings.performance },
+                                                                                  set: { v in model.updateSettings { $0.performance = v } })) {
+                        ForEach(PerformancePreference.allCases, id: \.self) { Text(model.t($0.title)).tag($0) }
+                    }
                     Toggle(model.t("Antrenman hatırlatmaları", "Workout reminders"),
                            isOn: Binding(get: { model.data.settings.workoutReminders }, set: { v in model.updateSettings { $0.workoutReminders = v } }))
                     Toggle(model.t("Günlük brifingi sesli oku", "Speak daily briefing"),
@@ -78,6 +82,7 @@ struct SettingsView: View {
                 }
                 Section(model.t("Gizlilik", "Privacy")) {
                     Button(model.t("JARVIS'in hafızası", "JARVIS memory")) { showMemory = true }
+                    NavigationLink(model.t("Gizlilik politikası", "Privacy policy")) { PrivacyPolicyView() }
                     Toggle(model.t("Fit Check fotoğraflarını sakla", "Keep Fit Check photos"),
                            isOn: Binding(get: { model.data.settings.savePhotos }, set: { v in model.updateSettings { $0.savePhotos = v } }))
                     Text(model.t("Kamera görüntüsü, ses ve tüm verilerin yalnızca bu iPhone'da işlenir ve saklanır. Sunucumuz yoktur; satın alma doğrulaması için yalnızca Apple'ın App Store hizmetleri kullanılır.",
@@ -90,8 +95,11 @@ struct SettingsView: View {
                                  "JARVIS FIT is not a medical device and does not diagnose or treat. Calorie, measurement and form feedback are estimates. Consult your doctor before starting a new exercise program, especially if you have a health condition."))
                         .font(Theme.caption).foregroundStyle(Theme.textSecondary)
                 }
+                Section(model.t("Geliştirici", "Developer")) {
+                    NavigationLink(model.t("Poz kayıtları (tekrar sayımı doğrulama)", "Pose recordings (rep counting validation)")) { PoseRecordingsView() }
+                }
                 Section {
-                    Text("JARVIS FIT 1.0 · \(model.t("Model", "Model")): \(model.t("Apple Vision (poz), Apple Speech, Apple Foundation Models", "Apple Vision (pose), Apple Speech, Apple Foundation Models"))")
+                    Text("JARVIS FIT \(LiveWorkoutController.appVersion) · \(model.t("Model", "Model")): \(model.t("Apple Vision (poz), Apple Speech, Apple Foundation Models", "Apple Vision (pose), Apple Speech, Apple Foundation Models"))")
                         .font(Theme.caption).foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -160,6 +168,13 @@ struct MemoryView: View {
     var body: some View {
         NavigationStack {
             List {
+                if !model.isPremium {
+                    Section {
+                        Text(model.t("Kişisel hafıza Premium özelliğidir. Ücretsiz sürümde yeni bilgi hatırlanmaz.",
+                                     "Personal memory is a Premium feature. The free version doesn't remember new facts."))
+                            .font(Theme.caption).foregroundStyle(Theme.warning)
+                    }
+                }
                 Section {
                     Toggle(model.t("Kişisel hafıza açık", "Personal memory on"),
                            isOn: Binding(get: { model.data.memoryEnabled }, set: { model.setMemoryEnabled($0) }))

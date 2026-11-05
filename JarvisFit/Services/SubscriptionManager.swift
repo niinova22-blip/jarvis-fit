@@ -15,6 +15,7 @@ final class SubscriptionManager: ObservableObject {
     @Published private(set) var loadError: String?
     @Published private(set) var purchaseInProgress = false
 
+    /// Listens for renewals/refunds for the app's lifetime (the manager is never deallocated).
     private var updatesTask: Task<Void, Never>?
 
     init() {
@@ -29,8 +30,6 @@ final class SubscriptionManager: ObservableObject {
             await loadProducts()
         }
     }
-
-    deinit { updatesTask?.cancel() }
 
     func loadProducts() async {
         do {

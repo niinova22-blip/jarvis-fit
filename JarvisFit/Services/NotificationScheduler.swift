@@ -38,23 +38,47 @@ enum NotificationScheduler {
             }
         }
         if settings.speakDailyBriefing {
-            let content = UNMutableNotificationContent()
-            content.title = tr ? "Günaydın" : "Good morning"
-            content.body = tr ? "Günlük brifingin hazır." : "Your daily briefing is ready."
-            var components = DateComponents()
-            components.hour = 8
-            center.add(UNNotificationRequest(identifier: "briefing", content: content,
-                                             trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: true)))
+            // One personalised briefing per day for the next 7 days (rebuilt each time the app opens).
+            let calendar = Calendar.current
+            let targets = model.targets
+            for offset in 1...7 {
+                guard let date = calendar.date(byAdding: .day, value: offset, to: Date().startOfDay) else { continue }
+                let content = UNMutableNotificationContent()
+                let name = profile.name.isEmpty ? "" : ", \(profile.name)"
+                content.title = tr ? "Günaydın\(name)" : "Good morning\(name)"
+                var body: String
+                if let workout = plan.workout(on: date.isoWeekday) {
+                    let muscles = workout.focus.prefix(2).map { $0.title.resolve(profile.language) }.joined(separator: tr ? " ve " : " and ")
+                    let time = ResponseComposer.timeString(profile.preferredTrainingMinute)
+                    body = tr ? "Bugün \(time)'da \(muscles) antrenmanın var." : "Today at \(time): \(muscles) training."
+                } else {
+                    body = tr ? "Bugün dinlenme günü; toparlanmaya odaklan." : "Rest day today; focus on recovery."
+                }
+                if let targets {
+                    body += tr ? " Protein hedefin \(targets.proteinG) g." : " Protein target: \(targets.proteinG) g."
+                }
+                content.body = body
+                var components = calendar.dateComponents([.year, .month, .day], from: date)
+                components.hour = 8
+                center.add(UNNotificationRequest(identifier: "briefing-\(offset)", content: content,
+                                                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)))
+            }
         }
         if settings.weeklyReport {
             let content = UNMutableNotificationContent()
             content.title = tr ? "Haftalık rapor" : "Weekly report"
-            content.body = tr ? "Bu haftaki gelişimine bir bak." : "See how your week went."
+            let report = model.weeklyReport(weekStart: Date().startOfWeek)
+            if let report, report.workoutsDone > 0 {
+                content.body = tr ? "Bu hafta \(report.workoutsDone) antrenman yaptın. Raporun hazır."
+                                  : "You trained \(report.workoutsDone) times this week. Your report is ready."
+            } else {
+                content.body = tr ? "Bu haftaki gelişimine bir bak." : "See how your week went."
+            }
             var components = DateComponents()
             components.weekday = 1
             components.hour = 19
             center.add(UNNotificationRequest(identifier: "weekly", content: content,
-                                             trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: true)))
+                                             trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)))
         }
     }
 }

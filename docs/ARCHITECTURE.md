@@ -3,16 +3,20 @@
 ```
 SPOR/
 ├─ Packages/JarvisCore/        Platform-independent logic (Foundation only; builds on macOS/Linux/Windows)
-│  ├─ Pose/                    Joint model, geometry, One-Euro smoothing
+│  ├─ Common/                  Language/normalisation, number words, PerformancePolicy (light mode)
+│  ├─ Pose/                    Joint model, geometry, One-Euro smoothing, PoseRecording + ReplayEvaluator
 │  ├─ Exercises/               RepCounter (hysteresis state machine), 10 exercise specs, plank timer,
 │  │                           form issues, rule-based exercise recognizer
 │  ├─ Coach/                   FramingGuide, WorkoutSessionEngine (hands-free state machine),
-│  │                           CoachCue + CoachVoice (personality phrasebook TR/EN), Safety
-│  ├─ Voice/                   IntentParser (TR/EN commands), ResponseComposer, DailyBriefing, PromptBuilder
+│  │                           CoachCue + CoachVoice (personality phrasebook TR/EN), Safety, Motivation
+│  ├─ Voice/                   IntentParser (TR/EN commands), ResponseComposer, DailyBriefing, PromptBuilder,
+│  │                           OnboardingVoiceParser (spoken onboarding answers)
 │  ├─ Planner/                 UserProfile, ExerciseLibrary (46 exercises), WorkoutPlanner, Progression, ScheduleRules
-│  ├─ Nutrition/               FoodDatabase (~95 foods), NutritionCalculator, MealParser (voice), FoodLogEntry
+│  ├─ Nutrition/               FoodDatabase (~95 foods), NutritionCalculator, MealParser (voice), FoodLogEntry,
+│  │                           ConfirmationQuestions (oil/sugar/dressing questions after a photo)
 │  ├─ FitCheck/                Silhouette → circumference estimator with ranges + calibration, posture
-│  ├─ Adaptive/                AdaptiveEngine (explainable recommendations)
+│  ├─ Adaptive/                AdaptiveEngine (explainable recommendations incl. missed-workout rescheduling),
+│  │                           WeeklyReport, ProgressAnalytics, MissedWorkoutDetector
 │  └─ Memory/                  MemoryItem + extractor (data minimisation)
 ├─ JarvisFit/                  iOS app (SwiftUI, iOS 17+)
 │  ├─ App/                     AppModel (state + persistence), AppData (JSON, complete file protection)
@@ -30,8 +34,10 @@ SPOR/
 ## Live Coach pipeline (independent of the language model)
 
 ```
-AVCaptureSession (30 fps, 720p, portrait, unmirrored)
-  → VNDetectHumanBodyPoseRequest (drop frames while busy; 15 fps under thermal pressure)
+AVCaptureSession (30 fps; 720p, or 640p in light mode; portrait, unmirrored)
+  → VNDetectHumanBodyPoseRequest (drop frames while busy; ProcessingBudget from PerformancePolicy:
+    light mode = every 2nd frame on ≤4 GB devices, Low Power Mode, heat or measured < 20 fps)
+  → [optional] PoseRecorder (developer setting) → JSON in Application Support/PoseRecordings
   → PoseFrame (19 joints, normalised, top-left origin)
   → WorkoutSessionEngine.process
        PoseSmoother (One-Euro) → FramingGuide (positioning) / ExerciseAnalyzer (active set)
@@ -55,3 +61,18 @@ Hands-free flow: positioning (framing must be "ready" for 1 s) → spoken 3-2-1 
   cannot judge are listed per exercise (`unassessableFormAspects`) and never corrected.
 - **Privacy**: no server. Data is a single JSON file with `completeFileProtection`; memory stores
   short facts only; the user can view/delete memory and all data.
+
+## Validating rep counting with real data
+
+1. Settings › Developer › Pose recordings › enable recording.
+2. Do a live workout; afterwards open the recording and enter the real count for each set.
+3. The app replays the current algorithm (`ReplayEvaluator`) and shows the accuracy.
+4. Share the JSON and put it in `Packages/JarvisCore/Tests/JarvisCoreTests/Fixtures/`:
+   `testRealRecordingFixtures` replays every labelled set (must be within ±1 rep for ≥ 90%), so
+   threshold changes are regression-tested against real people.
+
+## Data safety
+
+`AppData`/`AppSettings` decode every field independently (`decodeIfPresent` + default), so a new
+or corrupt field never wipes the user's data; an unreadable file is copied to
+`jarvisfit-data.corrupt-<time>.json` before starting fresh.

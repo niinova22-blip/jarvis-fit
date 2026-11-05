@@ -175,6 +175,8 @@ struct PhotoConfirmSheet: View {
     let state: PhotoAnalysisState
     @State private var selected: [String: Double] = [:]  // food id → portion multiplier
     @State private var extra: [FoodItem] = []
+    /// Confirmation question id → chosen option index.
+    @State private var answers: [String: Int] = [:]
     @State private var meal = MealType.forHour(Calendar.current.component(.hour, from: Date()))
     @State private var showSearch = false
 
@@ -218,9 +220,18 @@ struct PhotoConfirmSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(model.t("Ekle", "Add")) {
                         let all = state.candidates.map(\.food) + extra
-                        let entries = selected.compactMap { id, multiplier -> FoodLogEntry? in
-                            guard let food = all.first(where: { $0.id == id }) else { return nil }
-                            return FoodLogEntry(date: Date(), meal: meal, food: food, quantity: multiplier, unit: food.defaultUnit, source: .photo)
+                        var entries: [FoodLogEntry] = []
+                        for (id, multiplier) in selected {
+                            guard let food = all.first(where: { $0.id == id }) else { continue }
+                            entries.append(FoodLogEntry(date: Date(), meal: meal, food: food, quantity: multiplier, unit: food.defaultUnit, source: .photo))
+                            // Answers to the short questions become their own, visible entries (e.g. 10 g olive oil).
+                            for question in ConfirmationQuestions.questions(for: food) {
+                                let index = answers[question.id] ?? question.defaultIndex
+                                let grams = question.options[index].grams * multiplier
+                                if grams > 0, let ingredient = FoodDatabase.item(question.ingredientId) {
+                                    entries.append(FoodLogEntry(date: Date(), meal: meal, food: ingredient, quantity: grams, unit: .gram, source: .photo))
+                                }
+                            }
                         }
                         model.addFoodEntries(entries)
                         dismiss()
@@ -261,8 +272,23 @@ struct PhotoConfirmSheet: View {
                         ChipButton(title: model.t(size.0), selected: selected[food.id] == size.1) { selected[food.id] = size.1 }
                     }
                 }
-                let grams = food.defaultPortionGrams * (selected[food.id] ?? 1)
-                Text("1 \(model.t(food.defaultUnit.title)) ≈ \(Int(food.defaultPortionGrams)) g → \(Int(food.macros(grams: grams).kcal)) kcal")
+                ForEach(ConfirmationQuestions.questions(for: food)) { question in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(model.t(question.text)).font(Theme.caption).foregroundStyle(.white)
+                        HStack {
+                            ForEach(question.options.indices, id: \.self) { index in
+                                ChipButton(title: model.t(question.options[index].title),
+                                           selected: (answers[question.id] ?? question.defaultIndex) == index) { answers[question.id] = index }
+                            }
+                        }
+                    }
+                }
+                let portions = selected[food.id] ?? 1
+                let extraKcal = ConfirmationQuestions.questions(for: food).reduce(0.0) {
+                    $0 + $1.extraMacros(optionIndex: answers[$1.id] ?? $1.defaultIndex, portions: portions).kcal
+                }
+                let kcal = food.macros(grams: food.defaultPortionGrams * portions).kcal + extraKcal
+                Text("1 \(model.t(food.defaultUnit.title)) ≈ \(Int(food.defaultPortionGrams)) g → ~\(Int(kcal)) kcal")
                     .font(Theme.caption).foregroundStyle(Theme.textSecondary)
             }
         }

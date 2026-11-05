@@ -112,3 +112,75 @@ final class VoiceTests: XCTestCase {
         XCTAssertTrue(text.contains("protein hedefin \(targets.proteinG) gram"))
     }
 }
+
+final class OnboardingVoiceTests: XCTestCase {
+    let base = UserProfile()
+
+    func apply(_ text: String, _ topic: OnboardingTopic) -> OnboardingVoiceResult {
+        OnboardingVoiceParser.apply(text, topic: topic, to: base)
+    }
+
+    func testLanguageNameAndCoach() {
+        XCTAssertEqual(apply("İngilizce konuşalım", .language).profile.language, .english)
+        let r = apply("Adım Mert, disiplinli bir hoca istiyorum", .nameAndCoach)
+        XCTAssertEqual(r.profile.name, "Mert")
+        XCTAssertEqual(r.profile.personality, .disciplined)
+        XCTAssertEqual(apply("Call me Alex, and be calm", .nameAndCoach).profile.name, "Alex")
+        XCTAssertEqual(apply("Call me Alex, and be calm", .nameAndCoach).profile.personality, .calm)
+    }
+
+    func testGoals() {
+        XCTAssertEqual(apply("Yağsız ve belirgin kaslı olmak istiyorum", .goal).profile.goal, .leanDefined)
+        XCTAssertEqual(apply("kaslı bir vücut", .goal).profile.goal, .muscular)
+        XCTAssertEqual(apply("I want to be strong", .goal).profile.goal, .strong)
+        XCTAssertEqual(apply("dengeli ve sağlıklı", .goal).profile.goal, .balanced)
+        XCTAssertFalse(apply("bilmiyorum", .goal).understood)
+    }
+
+    func testBodyStats() {
+        let tr = apply("Otuz iki yaşındayım, boyum bir yetmiş sekiz, kilom seksen iki buçuk", .body).profile
+        XCTAssertEqual(tr.age, 32)
+        XCTAssertEqual(tr.heightCm, 178)
+        XCTAssertEqual(tr.weightKg, 82.5)
+        let plain = apply("25 180 75", .body).profile
+        XCTAssertEqual(plain.age, 25)
+        XCTAssertEqual(plain.heightCm, 180)
+        XCTAssertEqual(plain.weightKg, 75)
+        let en = apply("I'm 40 years old, 1,72 tall and weigh 68 kg, female", .body).profile
+        XCTAssertEqual(en.age, 40)
+        XCTAssertEqual(en.heightCm, 172, accuracy: 0.01)
+        XCTAssertEqual(en.weightKg, 68)
+        XCTAssertEqual(en.sex, .female)
+    }
+
+    func testExperienceEquipmentHealthDiet() {
+        XCTAssertEqual(apply("iki yıldır düzenli çalışıyorum", .experience).profile.experience, .advanced)
+        XCTAssertEqual(apply("about 8 months", .experience).profile.experience, .intermediate)
+        XCTAssertEqual(apply("yeni başlıyorum", .experience).profile.experience, .beginner)
+        XCTAssertEqual(apply("Dambıl ve barfiks barım var", .equipment).profile.equipment, [.dumbbells, .pullUpBar])
+        let none = apply("hiçbir ekipmanım yok", .equipment)
+        XCTAssertTrue(none.understood)
+        XCTAssertTrue(none.profile.equipment.isEmpty)
+        XCTAssertEqual(apply("Dizimde ve belimde sorun var", .health).profile.limitations, [.knee, .lowerBack])
+        XCTAssertEqual(apply("hayır yok", .health).profile.limitations, [])
+        XCTAssertEqual(apply("vejetaryenim", .diet).profile.diet, .vegetarian)
+    }
+
+    func testSchedule() {
+        let r = apply("Pazartesi, çarşamba ve cumartesi akşam yedide, 45 dakika", .schedule).profile
+        XCTAssertEqual(r.availableDays, [1, 3, 6])
+        XCTAssertEqual(r.preferredTrainingMinute, 19 * 60)
+        XCTAssertEqual(r.sessionMinutes, 45)
+        XCTAssertEqual(apply("hafta içi saat 18.30", .schedule).profile.availableDays, [1, 2, 3, 4, 5])
+        XCTAssertEqual(apply("hafta içi saat 18.30", .schedule).profile.preferredTrainingMinute, 18 * 60 + 30)
+        XCTAssertEqual(apply("weekends at 9 am for an hour", .schedule).profile.availableDays, [6, 7])
+        XCTAssertEqual(apply("weekends at 9 am for an hour", .schedule).profile.preferredTrainingMinute, 9 * 60)
+        XCTAssertEqual(apply("weekends at 9 am for an hour", .schedule).profile.sessionMinutes, 60)
+        XCTAssertEqual(apply("pazar ve cuma", .schedule).profile.availableDays, [5, 7])
+    }
+
+    func testNavigation() {
+        XCTAssertTrue(apply("tamam devam", .goal).advance)
+        XCTAssertTrue(apply("geri dön", .goal).goBack)
+    }
+}

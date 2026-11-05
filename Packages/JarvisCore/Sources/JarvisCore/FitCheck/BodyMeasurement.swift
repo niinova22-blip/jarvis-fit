@@ -253,6 +253,28 @@ public struct PostureReport: Codable, Hashable, Sendable {
         return report
     }
 
+    /// Changes versus an earlier scan that exceed single-photo noise (≈2° tilt, 0.05 head ratio).
+    public func changes(since earlier: PostureReport) -> [LocalizedText] {
+        var notes: [LocalizedText] = []
+        func improved(_ old: Double?, _ new: Double?, threshold: Double) -> Bool? {
+            guard let old, let new, abs(abs(old) - abs(new)) >= threshold else { return nil }
+            return abs(new) < abs(old)
+        }
+        if let better = improved(earlier.shoulderTiltDegrees, shoulderTiltDegrees, threshold: 2) {
+            notes.append(better ? LocalizedText(tr: "Omuz hizan önceki taramaya göre daha dengeli görünüyor.", en: "Your shoulders look more level than in the earlier scan.")
+                                : LocalizedText(tr: "Omuz hizandaki fark önceki taramaya göre arttı.", en: "The shoulder height difference increased since the earlier scan."))
+        }
+        if let better = improved(earlier.hipTiltDegrees, hipTiltDegrees, threshold: 2) {
+            notes.append(better ? LocalizedText(tr: "Kalça hizan daha dengeli görünüyor.", en: "Your hips look more level.")
+                                : LocalizedText(tr: "Kalça hizandaki fark arttı.", en: "The hip level difference increased."))
+        }
+        if let better = improved(earlier.forwardHeadRatio, forwardHeadRatio, threshold: 0.05) {
+            notes.append(better ? LocalizedText(tr: "Baş duruşun omuz hizasına daha yakın.", en: "Your head sits closer to shoulder alignment.")
+                                : LocalizedText(tr: "Başın önceki taramaya göre daha önde görünüyor.", en: "Your head appears further forward than before."))
+        }
+        return notes
+    }
+
     /// Observations worth mentioning (never diagnoses).
     public func observations() -> [LocalizedText] {
         var notes: [LocalizedText] = []

@@ -29,6 +29,8 @@ final class LiveWorkoutController: ObservableObject {
     private var recorded = false
     private var started = false
     private var cameraChanges: AnyCancellable?
+    private var recorder: PoseRecorder?
+    private var setViews: [Int: CameraView] = [:]
 
     init(plan: LiveWorkoutPlan, planned: PlannedWorkout?, model: AppModel, assistant: JarvisAssistant) {
         self.plan = plan
@@ -51,7 +53,12 @@ final class LiveWorkoutController: ObservableObject {
         started = true
         UIApplication.shared.isIdleTimerDisabled = true
         camera.onPose = { [weak self] frame in self?.handle(frame) }
-        camera.start(front: model.data.settings.useFrontCamera)
+        let front = model.data.settings.useFrontCamera
+        camera.start(front: front, preference: model.data.settings.performance)
+        if model.data.settings.recordPoseData {
+            recorder = PoseRecorder(recording: PoseRecording(device: Self.deviceModel, appVersion: Self.appVersion,
+                                                             cameraPosition: front ? "front" : "back"))
+        }
 
         let voice = model.voice
         voice.isBargeIn = { text in
@@ -93,6 +100,37 @@ final class LiveWorkoutController: ObservableObject {
         voice?.stopListening()
         UIApplication.shared.isIdleTimerDisabled = false
         recordIfNeeded()
+        savePoseRecording()
+    }
+
+    /// Writes the raw pose stream (developer option) for offline validation of the rep counters.
+    private func savePoseRecording() {
+        guard var recorder, !recorder.recording.frames.isEmpty else { return }
+        self.recorder = nil
+        recorder.markSets(engine.results, views: setViews)
+        var recording = recorder.recording
+        recording.notes = plan.title.en
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let exercises = Set(recording.sets.map(\.exercise.rawValue)).sorted().joined(separator: "_")
+        let url = DataStore.recordingsDirectory.appendingPathComponent("pose-\(formatter.string(from: recording.createdAt))-\(exercises.isEmpty ? "none" : exercises).json")
+        let output = recording
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? output.encoded() { try? data.write(to: url, options: [.atomic, .completeFileProtection]) }
+        }
+    }
+
+    static var deviceModel: String {
+        var info = utsname()
+        uname(&info)
+        return withUnsafeBytes(of: &info.machine) { buffer in
+            String(decoding: buffer.prefix { $0 != 0 }, as: UTF8.self)
+        }
+    }
+
+    static var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
     }
 
     private func tick() {
@@ -102,6 +140,7 @@ final class LiveWorkoutController: ObservableObject {
 
     private func handle(_ frame: PoseFrame) {
         latestFrame = frame
+        recorder?.add(frame)
         apply(engine.process(frame))
         snapshot = engine.snapshot
     }
@@ -163,6 +202,10 @@ final class LiveWorkoutController: ObservableObject {
                 caption = text
                 voice?.say(text, priority: cue.priority)
             }
+        }
+        // Remember which camera view each finished set used (for pose recordings).
+        if engine.results.count > setViews.count {
+            for index in setViews.count..<engine.results.count { setViews[index] = engine.cameraView }
         }
         if engine.phase == .finished, summary == nil {
             summary = engine.summary

@@ -7,13 +7,20 @@ struct ProgressScreen: View {
     @State private var showFitCheck = false
     @State private var showPaywall = false
     @State private var newWeight: Double = 0
+    @State private var selectedExercise: String?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if model.isPremium {
+                        weekReportCard
+                    } else {
+                        premiumTeaser
+                    }
                     weightCard
                     volumeCard
+                    if model.isPremium { exerciseProgressCard }
                     bestsCard
                     fitCheckCard
                 }
@@ -89,6 +96,85 @@ struct ProgressScreen: View {
         }
     }
 
+    private var premiumTeaser: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    SectionTitle(text: model.t("Gelişim raporları", "Progress reports"))
+                    Spacer()
+                    Text("PREMIUM").font(Theme.caption).foregroundStyle(Theme.warning)
+                }
+                Text(model.t("Haftalık rapor, hareket bazlı gelişim grafikleri, rekorlar ve adaptif öneriler Premium'da.",
+                             "Weekly reports, per-exercise progress charts, records and adaptive suggestions are in Premium."))
+                    .font(Theme.caption).foregroundStyle(Theme.textSecondary)
+                Button(model.t("Premium'u incele", "See Premium")) { showPaywall = true }.buttonStyle(SecondaryButtonStyle())
+            }
+        }
+    }
+
+    @ViewBuilder private var weekReportCard: some View {
+        if let report = model.weeklyReport(weekStart: Date().startOfWeek) {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionTitle(text: model.t("Bu haftanın raporu", "This week's report"))
+                    HStack(spacing: 18) {
+                        stat("\(report.workoutsDone)/\(max(report.workoutsPlanned, report.workoutsDone))", model.t("antrenman", "workouts"))
+                        stat("\(report.totalReps)", model.t("tekrar", "reps"))
+                        stat("\(report.activeMinutes)", model.t("dakika", "minutes"))
+                        stat("\(report.streakWeeks)", model.t("hafta seri", "week streak"))
+                    }
+                    Text(model.t(report.text)).font(Theme.caption).foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).font(Theme.headline).foregroundStyle(Theme.accent)
+            Text(label).font(Theme.caption).foregroundStyle(Theme.textSecondary)
+        }
+    }
+
+    @ViewBuilder private var exerciseProgressCard: some View {
+        let ids = ProgressAnalytics.trackedExerciseIds(model.data.performances)
+        if !ids.isEmpty {
+            let current = selectedExercise.flatMap { ids.contains($0) ? $0 : nil } ?? ids[0]
+            let series = ProgressAnalytics.bestSetSeries(current, performances: model.data.performances)
+            let definition = ExerciseLibrary.definition(current)
+            Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        SectionTitle(text: model.t("Hareket gelişimi", "Exercise progress"))
+                        Spacer()
+                        Menu {
+                            ForEach(ids, id: \.self) { id in
+                                Button(ExerciseLibrary.definition(id).map { model.t($0.name) } ?? id) { selectedExercise = id }
+                            }
+                        } label: {
+                            Label(definition.map { model.t($0.name) } ?? current, systemImage: "chevron.down").font(Theme.caption)
+                        }
+                    }
+                    Chart(series) { point in
+                        LineMark(x: .value("Date", point.date), y: .value("Best", point.value))
+                            .foregroundStyle(Theme.accent)
+                        PointMark(x: .value("Date", point.date), y: .value("Best", point.value))
+                            .foregroundStyle(Theme.accent)
+                    }
+                    .chartYScale(domain: .automatic(includesZero: false))
+                    .frame(height: 150)
+                    if let trend = ProgressAnalytics.trend(series) {
+                        let pct = Int((trend * 100).rounded())
+                        Text(model.t("En iyi set: ilk dönemlere göre %\(pct > 0 ? "+" : "")\(pct)", "Best set vs early sessions: \(pct > 0 ? "+" : "")\(pct)%"))
+                            .font(Theme.caption).foregroundStyle(pct >= 0 ? Theme.success : Theme.warning)
+                    }
+                    Text(definition?.isTimed == true ? model.t("Değer: en uzun tutuş (sn)", "Value: longest hold (s)") : model.t("Değer: setteki en yüksek tekrar", "Value: most reps in a set"))
+                        .font(Theme.caption).foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+    }
+
     private var bests: [(TrackedExercise, Int)] {
         var best: [TrackedExercise: Int] = [:]
         for log in model.data.workoutLogs { for set in log.summary.sets { best[set.exercise] = max(best[set.exercise] ?? 0, set.achieved) } }
@@ -144,6 +230,13 @@ struct ProgressScreen: View {
                                     .foregroundStyle(significant ? Theme.accent : Theme.textSecondary)
                             }
                             .font(Theme.body)
+                        }
+                    }
+                    let postureChanges = last.posture.changes(since: first.posture)
+                    if !postureChanges.isEmpty {
+                        SectionTitle(text: model.t("Duruş değişimi", "Posture change"))
+                        ForEach(postureChanges, id: \.self) { note in
+                            Text("• " + model.t(note)).font(Theme.caption).foregroundStyle(Theme.textSecondary)
                         }
                     }
                     photoComparison(first, last)

@@ -11,9 +11,12 @@ public struct AssistantContext: Sendable {
     public var lastWorkout: WorkoutLog?
     public var workoutsThisWeek: Int
     public var memories: [MemoryItem]
+    public var weeklyReport: WeeklyReport?
 
     public init(profile: UserProfile, session: SessionSnapshot? = nil, plan: WeeklyPlan? = nil, todayWeekday: Weekday,
-                nutrition: NutritionDay? = nil, lastWorkout: WorkoutLog? = nil, workoutsThisWeek: Int = 0, memories: [MemoryItem] = []) {
+                nutrition: NutritionDay? = nil, lastWorkout: WorkoutLog? = nil, workoutsThisWeek: Int = 0, memories: [MemoryItem] = [],
+                weeklyReport: WeeklyReport? = nil) {
+        self.weeklyReport = weeklyReport
         self.profile = profile
         self.session = session
         self.plan = plan
@@ -108,6 +111,7 @@ public enum ResponseComposer {
             return say("Bugün yaklaşık \(Int(t.protein)) g protein, \(Int(t.carbs)) g karbonhidrat ve \(Int(t.fat)) g yağ aldın.",
                        "Today: about \(Int(t.protein)) g protein, \(Int(t.carbs)) g carbs and \(Int(t.fat)) g fat.")
         case .weeklyProgress:
+            if let report = c.weeklyReport { return report.text }
             let planned = c.plan?.workouts.count ?? 0
             return say("Bu hafta \(planned) antrenmanın \(c.workoutsThisWeek) tanesini tamamladın.",
                        "This week you've completed \(c.workoutsThisWeek) of \(planned) workouts.")

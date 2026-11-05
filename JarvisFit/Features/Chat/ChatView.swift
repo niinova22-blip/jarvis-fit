@@ -139,8 +139,13 @@ struct ChatView: View {
             switch outcome {
             case .reply(let text): reply = text
             case .startWorkout:
-                reply = model.t("Canlı antrenmanı başlatıyorum.", "Starting your live workout.")
-                if model.canStartLiveWorkout() { model.startWorkout(nil) }
+                if model.canStartLiveWorkout() {
+                    reply = model.t("Canlı antrenmanı başlatıyorum.", "Starting your live workout.")
+                    model.startWorkout(nil)
+                } else {
+                    reply = model.t("Bu haftaki ücretsiz canlı antrenman hakkın doldu. Premium ile sınırsız antrenman yapabilirsin.",
+                                    "You've used this week's free live workouts. Premium unlocks unlimited workouts.")
+                }
             case .stopSpeaking:
                 model.voice.stopSpeaking()
                 return

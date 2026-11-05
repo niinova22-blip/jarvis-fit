@@ -10,6 +10,36 @@ struct AppSettings: Codable, Equatable {
     /// Outside workouts JARVIS only reacts after hearing "Jarvis".
     var requireWakeWord = true
     var savePhotos = true
+    var performance: PerformancePreference = .automatic
+    /// Developer option: keep the raw pose stream of live workouts to validate rep counting.
+    var recordPoseData = false
+
+    init() {}
+
+    // Tolerant decoding: settings added in later versions fall back to defaults instead of
+    // making the whole data file unreadable.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AppSettings.defaults
+        useFrontCamera = c.value(.useFrontCamera, d.useFrontCamera)
+        speakDailyBriefing = c.value(.speakDailyBriefing, d.speakDailyBriefing)
+        workoutReminders = c.value(.workoutReminders, d.workoutReminders)
+        weeklyReport = c.value(.weeklyReport, d.weeklyReport)
+        voiceIdentifier = c.value(.voiceIdentifier, d.voiceIdentifier)
+        requireWakeWord = c.value(.requireWakeWord, d.requireWakeWord)
+        savePhotos = c.value(.savePhotos, d.savePhotos)
+        performance = c.value(.performance, d.performance)
+        recordPoseData = c.value(.recordPoseData, d.recordPoseData)
+    }
+
+    private static let defaults = AppSettings()
+}
+
+extension KeyedDecodingContainer {
+    /// Decodes a value if present and valid, otherwise returns the fallback.
+    func value<T: Decodable>(_ key: Key, _ fallback: T) -> T {
+        (try? decodeIfPresent(T.self, forKey: key)) ?? fallback
+    }
 }
 
 struct UsageCounters: Codable, Equatable {
@@ -56,6 +86,31 @@ struct AppData: Codable {
     var settings = AppSettings()
     var lastBriefingDay: String?
     var chat: [ChatMessage] = []
+    var lastWeeklyReportWeek: String?
+
+    init() {}
+
+    // Each field decodes independently so one unreadable or new field never wipes the user's data.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        profile = c.value(.profile, nil)
+        plan = c.value(.plan, nil)
+        workoutLogs = c.value(.workoutLogs, [])
+        performances = c.value(.performances, [])
+        foodLog = c.value(.foodLog, [])
+        weights = c.value(.weights, [])
+        fitChecks = c.value(.fitChecks, [])
+        calibration = c.value(.calibration, [:])
+        memories = c.value(.memories, [])
+        memoryEnabled = c.value(.memoryEnabled, true)
+        dismissedRecommendations = c.value(.dismissedRecommendations, [:])
+        calorieAdjustment = c.value(.calorieAdjustment, 0)
+        usage = c.value(.usage, UsageCounters())
+        settings = c.value(.settings, AppSettings())
+        lastBriefingDay = c.value(.lastBriefingDay, nil)
+        chat = c.value(.chat, [])
+        lastWeeklyReportWeek = c.value(.lastWeeklyReportWeek, nil)
+    }
 }
 
 /// JSON file persistence in Application Support.
@@ -81,7 +136,26 @@ final class DataStore {
         guard let data = try? Data(contentsOf: url) else { return AppData() }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode(AppData.self, from: data)) ?? AppData()
+        do {
+            return try decoder.decode(AppData.self, from: data)
+        } catch {
+            // Never silently overwrite unreadable data: keep a copy next to it.
+            let backup = url.deletingPathExtension().appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970)).json")
+            try? FileManager.default.copyItem(at: url, to: backup)
+            return AppData()
+        }
+    }
+
+    /// Directory for developer pose recordings (excluded from backups).
+    static var recordingsDirectory: URL {
+        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+            ?? FileManager.default.temporaryDirectory
+        var dir = base.appendingPathComponent("PoseRecordings", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? dir.setResourceValues(values)
+        return dir
     }
 
     func save(_ appData: AppData) {
@@ -97,6 +171,7 @@ final class DataStore {
     func deleteEverything() {
         try? FileManager.default.removeItem(at: url)
         try? FileManager.default.removeItem(at: Self.photosDirectory)
+        try? FileManager.default.removeItem(at: Self.recordingsDirectory)
     }
 }
 

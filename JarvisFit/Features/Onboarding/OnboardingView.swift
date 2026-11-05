@@ -7,6 +7,7 @@ struct OnboardingView: View {
     @State private var profile = UserProfile(language: AppLanguage.from(preferred: Locale.preferredLanguages))
     @State private var acceptedDisclaimer = false
     @State private var permissionsRequested = false
+    @State private var voiceAnswers = false
 
     private let stepCount = 10
     private var lang: AppLanguage { profile.language }
@@ -35,6 +36,7 @@ struct OnboardingView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     content
+                    voiceHint
                 }
                 .padding(20)
             }
@@ -48,7 +50,11 @@ struct OnboardingView: View {
             .padding(20)
         }
         .background(Theme.background.ignoresSafeArea())
-        .onAppear { speakQuestion() }
+        .onAppear {
+            speakQuestion()
+            if model.voice.hasPermissions { startVoiceAnswers() }
+        }
+        .onDisappear { endVoiceAnswers() }
         .onChange(of: step) { _, _ in speakQuestion() }
         .onChange(of: profile.language) { _, newValue in
             model.voice.configure(language: newValue, personality: profile.personality, voiceIdentifier: nil)
@@ -91,6 +97,7 @@ struct OnboardingView: View {
             withAnimation { step += 1 }
         } else {
             model.voice.stopSpeaking()
+            endVoiceAnswers()
             model.completeOnboarding(profile)
             Task { _ = await NotificationScheduler.requestAuthorization(); NotificationScheduler.reschedule(model: model) }
         }
@@ -211,6 +218,7 @@ struct OnboardingView: View {
                         _ = await model.voice.requestPermissions()
                         _ = await NotificationScheduler.requestAuthorization()
                         permissionsRequested = true
+                        if model.voice.hasPermissions && !voiceAnswers { startVoiceAnswers() }
                     }
                 }
                 .buttonStyle(SecondaryButtonStyle())
@@ -220,6 +228,87 @@ struct OnboardingView: View {
                         .font(Theme.caption).foregroundStyle(Theme.warning)
                 }
             }
+        }
+    }
+
+    // MARK: Voice answers
+
+    private var topic: OnboardingTopic { OnboardingTopic(rawValue: step) ?? .permissions }
+
+    @ViewBuilder private var voiceHint: some View {
+        if voiceAnswers {
+            Label(t("Cevabını söyleyebilirsin. Örn: \(example)", "You can answer by voice, e.g. \(example)"), systemImage: "mic.fill")
+                .font(Theme.caption).foregroundStyle(Theme.accent)
+            if !model.voice.lastHeard.isEmpty {
+                Text("“\(model.voice.lastHeard)”").font(Theme.caption).foregroundStyle(Theme.textSecondary)
+            }
+        } else if topic != .permissions {
+            Button {
+                Task {
+                    if await model.voice.requestPermissions() { startVoiceAnswers() }
+                }
+            } label: {
+                Label(t("Sesle cevaplamak için mikrofonu aç", "Turn on the microphone to answer by voice"), systemImage: "mic")
+                    .font(Theme.caption)
+            }
+        }
+    }
+
+    private var example: String {
+        switch topic {
+        case .language: return t("\"Türkçe\"", "\"English\"")
+        case .nameAndCoach: return t("\"Adım Mert, sakin bir hoca istiyorum\"", "\"Call me Alex, be energetic\"")
+        case .goal: return t("\"Kaslı bir vücut\"", "\"A strong body\"")
+        case .body: return t("\"30 yaşındayım, boyum 180, 82 kilo\"", "\"I'm 30, 180 cm, 82 kilos\"")
+        case .experience: return t("\"İki yıldır çalışıyorum\"", "\"About a year\"")
+        case .equipment: return t("\"Dambıl ve barfiks barım var\"", "\"Dumbbells and a pull-up bar\"")
+        case .schedule: return t("\"Pazartesi, çarşamba, cuma akşam yedide\"", "\"Monday, Wednesday, Friday at 7 pm\"")
+        case .health: return t("\"Dizimde sorun var\" veya \"yok, kabul ediyorum\"", "\"Knee issues\" or \"none, I agree\"")
+        case .diet: return t("\"Her şeyi yerim\"", "\"Vegetarian\"")
+        case .permissions: return t("\"devam\"", "\"continue\"")
+        }
+    }
+
+    private func startVoiceAnswers() {
+        let voice = model.voice
+        // JARVIS's own question is never taken as an answer (no barge-in during onboarding).
+        voice.isBargeIn = { _ in false }
+        voice.onUtterance = { text, isFinal in
+            guard isFinal else { return false }
+            handleVoiceAnswer(text)
+            return true
+        }
+        voice.startListening()
+        voiceAnswers = voice.isListening
+    }
+
+    private func endVoiceAnswers() {
+        model.voice.onUtterance = nil
+        model.voice.isBargeIn = nil
+        model.voice.stopListening()
+        voiceAnswers = false
+    }
+
+    private func handleVoiceAnswer(_ text: String) {
+        let result = OnboardingVoiceParser.apply(text, topic: topic, to: profile)
+        let normalized = TextNormalizer.normalize(text)
+        if topic == .health, ["kabul", "anladim", "onayliyorum", "understand", "agree", "accept"].contains(where: { normalized.contains($0) }) {
+            acceptedDisclaimer = true
+        }
+        if result.understood { profile = result.profile }
+        if result.goBack, step > 0 {
+            withAnimation { step -= 1 }
+            return
+        }
+        let singleChoice: Set<OnboardingTopic> = [.language, .goal, .experience, .diet]
+        if (result.advance || (result.understood && singleChoice.contains(topic))) && canContinue {
+            next()
+        } else if result.understood || acceptedDisclaimer {
+            model.voice.say(t("Tamam, not aldım. Hazırsan \"devam\" de.", "Got it. Say \"continue\" when you're ready."), priority: .high)
+        } else if !canContinue && result.advance {
+            model.voice.say(t("Devam etmeden önce bu adımı tamamlamamız gerekiyor.", "We need to finish this step before continuing."), priority: .high)
+        } else {
+            model.voice.say(t("Tam anlayamadım. Tekrar söyleyebilir ya da ekrandan seçebilirsin.", "I didn't quite get that. Say it again or pick on screen."), priority: .high)
         }
     }
 

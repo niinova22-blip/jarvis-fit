@@ -26,6 +26,26 @@ final class JarvisFitTests: XCTestCase {
         XCTAssertEqual(decoded.foodLog.count, 1)
     }
 
+    /// Older data files (missing newer fields) and a broken field must not wipe the user's data.
+    func testAppDataDecodingIsTolerant() throws {
+        var data = AppData()
+        data.profile = UserProfile(name: "Old")
+        data.weights = [WeightEntry(date: Date(timeIntervalSince1970: 0), kg: 80)]
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        var json = try JSONSerialization.jsonObject(with: encoder.encode(data)) as! [String: Any]
+        json.removeValue(forKey: "lastWeeklyReportWeek")
+        var settings = json["settings"] as! [String: Any]
+        settings.removeValue(forKey: "performance")
+        json["settings"] = settings
+        json["chat"] = "not an array"
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(AppData.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(decoded.profile?.name, "Old")
+        XCTAssertEqual(decoded.weights.count, 1)
+        XCTAssertTrue(decoded.chat.isEmpty)
+        XCTAssertEqual(decoded.settings.performance, .automatic)
+    }
+
     func testVisionJointMapCoversAllJoints() {
         XCTAssertEqual(Set(VisionPoseAdapter.jointMap.values), Set(Joint.allCases))
     }

@@ -12,6 +12,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     briefingCard
+                    if let report = model.pendingWeeklyReport { weeklyReportCard(report) }
                     todayCard
                     nutritionCard
                     if !model.recommendations.isEmpty { recommendationsSection }
@@ -54,12 +55,38 @@ struct DashboardView: View {
                 LiveOrb(voice: model.voice, size: 54)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(briefing).font(Theme.body).foregroundStyle(.white)
+                    if let motivation = model.motivation {
+                        Text(model.t(motivation)).font(Theme.caption).italic().foregroundStyle(Theme.accent)
+                    }
                     Button {
                         model.voice.stopSpeaking()
                         model.voice.say(briefing, priority: .high)
                     } label: {
                         Label(model.t("Dinle", "Listen"), systemImage: "speaker.wave.2.fill").font(Theme.caption)
                     }
+                }
+            }
+        }
+    }
+
+    private func weeklyReportCard(_ report: WeeklyReport) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(text: model.t("Geçen haftanın raporu", "Last week's report"))
+                HStack(spacing: 16) {
+                    ZStack {
+                        ProgressRing(progress: report.adherence, lineWidth: 7)
+                        Text("\(report.workoutsDone)/\(max(report.workoutsPlanned, report.workoutsDone))").font(Theme.headline).foregroundStyle(.white)
+                    }
+                    .frame(width: 64, height: 64)
+                    Text(model.t(report.text)).font(Theme.caption).foregroundStyle(Theme.textSecondary)
+                }
+                HStack {
+                    Button {
+                        model.voice.say(model.t(report.text), priority: .high)
+                    } label: { Label(model.t("Dinle", "Listen"), systemImage: "speaker.wave.2.fill").font(Theme.caption) }
+                    Spacer()
+                    Button(model.t("Tamam", "Got it")) { model.markWeeklyReportSeen() }.font(Theme.headline)
                 }
             }
         }

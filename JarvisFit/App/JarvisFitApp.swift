@@ -21,6 +21,7 @@ struct JarvisFitApp: App {
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var assistant: JarvisAssistant
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -31,6 +32,10 @@ struct RootView: View {
             }
         }
         .background(Theme.background.ignoresSafeArea())
+        // Personalised notifications are rebuilt from current data whenever the app becomes active.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && model.isOnboarded { NotificationScheduler.reschedule(model: model) }
+        }
         .fullScreenCover(isPresented: $model.showLiveWorkout) {
             if let workout = model.activeWorkout {
                 LiveWorkoutView(plan: workout.livePlan, planned: workout, model: model, assistant: assistant)
