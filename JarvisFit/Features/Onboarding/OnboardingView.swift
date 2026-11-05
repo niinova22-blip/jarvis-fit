@@ -57,13 +57,15 @@ struct OnboardingView: View {
         .onDisappear { endVoiceAnswers() }
         .onChange(of: step) { _, _ in speakQuestion() }
         .onChange(of: profile.language) { _, newValue in
-            model.voice.configure(language: newValue, personality: profile.personality, voiceIdentifier: nil)
+            model.voice.configure(language: newValue, personality: profile.personality, voiceIdentifier: nil,
+                                  gender: VoiceSelector.desiredGender(.matchUser, userSex: profile.sex))
             speakQuestion()
         }
     }
 
     private func speakQuestion() {
-        model.voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: nil)
+        model.voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: nil,
+                              gender: VoiceSelector.desiredGender(.matchUser, userSex: profile.sex))
         model.voice.stopSpeaking()
         model.voice.say(question, priority: .high)
     }

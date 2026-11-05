@@ -21,7 +21,7 @@ final class AppModel: ObservableObject {
         self.data = store.load()
         self.subscriptions = SubscriptionManager()
         self.voice = VoiceCoordinator()
-        if let profile = data.profile { voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: data.settings.voiceIdentifier) }
+        configureVoice()
         // Premium status lives in SubscriptionManager; refresh views that read `isPremium`.
         subscriptionChanges = subscriptions.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.objectWillChange.send() }
@@ -123,6 +123,14 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Applies language, personality and the gender-matched voice to the speech engine.
+    func configureVoice() {
+        guard let profile = data.profile else { return }
+        let gender = VoiceSelector.desiredGender(data.settings.voiceGender, userSex: profile.sex)
+        voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: data.settings.voiceIdentifier,
+                        gender: gender, enhancement: data.settings.voiceEnhancement)
+    }
+
     // MARK: Mutations
 
     private func mutate(_ change: (inout AppData) -> Void) {
@@ -136,7 +144,7 @@ final class AppModel: ObservableObject {
             data.plan = WorkoutPlanner().makePlan(for: profile)
             data.weights.append(WeightEntry(date: Date(), kg: profile.weightKg))
         }
-        voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: data.settings.voiceIdentifier)
+        configureVoice()
         NotificationScheduler.reschedule(model: self)
     }
 
@@ -145,15 +153,13 @@ final class AppModel: ObservableObject {
             data.profile = profile
             if regeneratePlan { data.plan = WorkoutPlanner().makePlan(for: profile) }
         }
-        voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: data.settings.voiceIdentifier)
+        configureVoice()
         NotificationScheduler.reschedule(model: self)
     }
 
     func updateSettings(_ change: (inout AppSettings) -> Void) {
         mutate { change(&$0.settings) }
-        if let profile = data.profile {
-            voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: data.settings.voiceIdentifier)
-        }
+        configureVoice()
         NotificationScheduler.reschedule(model: self)
     }
 

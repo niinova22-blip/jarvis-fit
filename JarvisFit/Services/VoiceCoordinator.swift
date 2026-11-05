@@ -18,6 +18,10 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     @Published private(set) var onDeviceRecognitionAvailable = true
     @Published private(set) var permissionDenied = false
     @Published private(set) var lastSpoken = ""
+    /// Name and quality of the voice in use (shown in Settings).
+    @Published private(set) var activeVoiceDescription = ""
+    /// True when a higher-quality voice of the wanted gender could be downloaded in iOS Settings.
+    @Published private(set) var suggestVoiceDownload = false
 
     /// Called with transcripts. Return true when the text was acted upon (recognition restarts).
     var onUtterance: ((String, Bool) -> Bool)?
@@ -27,9 +31,18 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     private(set) var language: AppLanguage = .turkish
     private var personality: CoachPersonality = .friendly
     private var voiceIdentifier: String?
+    private var wantedGender: VoiceCandidate.Gender = .female
+    private var cachedVoice: AVSpeechSynthesisVoice?
+    private var enhancementEnabled = true
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
+    // Studio-style output chain: EQ -> compressor -> subtle room.
+    private let equalizer = AVAudioUnitEQ(numberOfBands: 4)
+    private let compressor = AVAudioUnitEffect(audioComponentDescription: AudioComponentDescription(
+        componentType: kAudioUnitType_Effect, componentSubType: kAudioUnitSubType_DynamicsProcessor,
+        componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0))
+    private let reverb = AVAudioUnitReverb()
     private let playerFormat = AVAudioFormat(standardFormatWithSampleRate: 22_050, channels: 1)!
     private let synthesizer = AVSpeechSynthesizer()
     private var engineConfigured = false
@@ -63,11 +76,17 @@ final class VoiceCoordinator: NSObject, ObservableObject {
                                                name: AVAudioSession.interruptionNotification, object: nil)
     }
 
-    func configure(language: AppLanguage, personality: CoachPersonality, voiceIdentifier: String?) {
+    func configure(language: AppLanguage, personality: CoachPersonality, voiceIdentifier: String?,
+                   gender: VoiceCandidate.Gender = .female, enhancement: Bool = true) {
         let languageChanged = language != self.language || recognizer == nil
         self.language = language
         self.personality = personality
         self.voiceIdentifier = voiceIdentifier
+        self.wantedGender = gender
+        self.enhancementEnabled = enhancement
+        applyEnhancement()
+        cachedVoice = nil
+        _ = selectedVoice()
         if languageChanged {
             recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.localeIdentifier))
             onDeviceRecognitionAvailable = recognizer?.supportsOnDeviceRecognition ?? false
@@ -120,7 +139,14 @@ final class VoiceCoordinator: NSObject, ObservableObject {
             }
             if !engineConfigured {
                 engine.attach(player)
-                engine.connect(player, to: engine.mainMixerNode, format: playerFormat)
+                engine.attach(equalizer)
+                engine.attach(compressor)
+                engine.attach(reverb)
+                engine.connect(player, to: equalizer, format: playerFormat)
+                engine.connect(equalizer, to: compressor, format: playerFormat)
+                engine.connect(compressor, to: reverb, format: playerFormat)
+                engine.connect(reverb, to: engine.mainMixerNode, format: playerFormat)
+                setUpEnhancementChain()
                 engineConfigured = true
             }
             engine.prepare()
@@ -128,6 +154,39 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         } catch {
             print("[Voice] engine start failed: \(error)")
         }
+    }
+
+    /// EQ: rumble cut, less boxiness, presence and air; gentle compression for an even,
+    /// close-mic "broadcast" sound; a barely audible small room so the voice is not synthetic-dry.
+    private func setUpEnhancementChain() {
+        let bands = equalizer.bands
+        bands[0].filterType = .highPass
+        bands[0].frequency = 90
+        bands[1].filterType = .parametric
+        bands[1].frequency = 280
+        bands[1].bandwidth = 1.0
+        bands[1].gain = -2
+        bands[2].filterType = .parametric
+        bands[2].frequency = 3_500
+        bands[2].bandwidth = 1.2
+        bands[2].gain = 2.5
+        bands[3].filterType = .highShelf
+        bands[3].frequency = 10_000
+        bands[3].gain = 1.5
+        let unit = compressor.audioUnit
+        AudioUnitSetParameter(unit, kDynamicsProcessorParam_Threshold, kAudioUnitScope_Global, 0, -20, 0)
+        AudioUnitSetParameter(unit, kDynamicsProcessorParam_HeadRoom, kAudioUnitScope_Global, 0, 6, 0)
+        AudioUnitSetParameter(unit, kDynamicsProcessorParam_AttackTime, kAudioUnitScope_Global, 0, 0.003, 0)
+        AudioUnitSetParameter(unit, kDynamicsProcessorParam_ReleaseTime, kAudioUnitScope_Global, 0, 0.08, 0)
+        AudioUnitSetParameter(unit, kDynamicsProcessorParam_OverallGain, kAudioUnitScope_Global, 0, 4, 0)
+        reverb.loadFactoryPreset(.smallRoom)
+        applyEnhancement()
+    }
+
+    private func applyEnhancement() {
+        for band in equalizer.bands { band.bypass = !enhancementEnabled }
+        compressor.bypass = !enhancementEnabled
+        reverb.wetDryMix = enhancementEnabled ? 6 : 0
     }
 
     private nonisolated func appendAudio(_ buffer: AVAudioPCMBuffer) {
@@ -312,9 +371,13 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         let generation = speechGeneration
 
         let utterance = AVSpeechUtterance(string: item.text)
+        let prosody = VoiceProsody.for(personality)
         utterance.voice = selectedVoice()
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(personality.speechRate)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(prosody.rateMultiplier)
+        utterance.pitchMultiplier = Float(prosody.pitchMultiplier)
         utterance.prefersAssistiveTechnologySettings = false
+        // Rendered with write(), so the sentence gap is added as silence after the last buffer.
+        let gapFrames = AVAudioFrameCount(max(1, prosody.postDelay * playerFormat.sampleRate))
         if !player.isPlaying { player.play() }
 
         let state = SpeechWriteState()
@@ -330,8 +393,8 @@ final class VoiceCoordinator: NSObject, ObservableObject {
                             return
                         }
                         // End of utterance: continue when the last buffer has been played.
-                        guard let marker = AVAudioPCMBuffer(pcmFormat: self.playerFormat, frameCapacity: 1) else { return }
-                        marker.frameLength = 1
+                        guard let marker = AVAudioPCMBuffer(pcmFormat: self.playerFormat, frameCapacity: gapFrames) else { return }
+                        marker.frameLength = gapFrames
                         self.player.scheduleBuffer(marker, completionCallbackType: .dataPlayedBack) { [weak self] _ in
                             DispatchQueue.main.async {
                                 MainActor.assumeIsolated {
@@ -375,15 +438,41 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     }
 
     private func selectedVoice() -> AVSpeechSynthesisVoice? {
-        if let id = voiceIdentifier, let voice = AVSpeechSynthesisVoice(identifier: id), voice.language.hasPrefix(language.rawValue) {
-            return voice
+        if let cachedVoice { return cachedVoice }
+        let voice: AVSpeechSynthesisVoice?
+        if let id = voiceIdentifier, let manual = AVSpeechSynthesisVoice(identifier: id), manual.language.hasPrefix(language.rawValue) {
+            voice = manual
+            suggestVoiceDownload = false
+        } else {
+            let all = AVSpeechSynthesisVoice.speechVoices()
+            if let best = VoiceSelector.best(from: all.map(Self.candidate), language: language, gender: wantedGender,
+                                             preferredRegion: language.localeIdentifier) {
+                voice = all.first { $0.identifier == best.voice.identifier }
+                suggestVoiceDownload = VoiceSelector.shouldSuggestDownload(best.voice, wanted: wantedGender)
+            } else {
+                voice = AVSpeechSynthesisVoice(language: language.localeIdentifier)
+                suggestVoiceDownload = true
+            }
         }
-        let candidates = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(language.rawValue) }
-        return candidates.max { $0.quality.rawValue < $1.quality.rawValue } ?? AVSpeechSynthesisVoice(language: language.localeIdentifier)
+        cachedVoice = voice
+        if let voice {
+            let quality = voice.quality == .premium ? "Premium" : voice.quality == .enhanced ? "Enhanced" : "Standard"
+            activeVoiceDescription = "\(voice.name) · \(quality)"
+        }
+        return voice
+    }
+
+    static func candidate(_ voice: AVSpeechSynthesisVoice) -> VoiceCandidate {
+        let gender: VoiceCandidate.Gender = voice.gender == .male ? .male : voice.gender == .female ? .female : .unknown
+        let quality = voice.quality == .premium ? 2 : voice.quality == .enhanced ? 1 : 0
+        return VoiceCandidate(identifier: voice.identifier, name: voice.name, language: voice.language, gender: gender,
+                              quality: quality, isNovelty: voice.voiceTraits.contains(.isNoveltyVoice),
+                              isPersonalVoice: voice.voiceTraits.contains(.isPersonalVoice))
     }
 
     static func availableVoices(for language: AppLanguage) -> [AVSpeechSynthesisVoice] {
-        AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(language.rawValue) }
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix(language.rawValue) && !$0.voiceTraits.contains(.isNoveltyVoice) }
             .sorted { $0.quality.rawValue > $1.quality.rawValue }
     }
 

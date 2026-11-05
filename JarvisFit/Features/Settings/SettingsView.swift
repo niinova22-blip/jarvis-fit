@@ -39,6 +39,21 @@ struct SettingsView: View {
                             Text("\(voice.name) \(voice.quality == .premium ? "★★" : voice.quality == .enhanced ? "★" : "")").tag(voice.identifier)
                         }
                     }
+                    Picker(model.t("Ses tipi", "Voice type"), selection: Binding(get: { model.data.settings.voiceGender },
+                                                                               set: { v in model.updateSettings { $0.voiceGender = v; $0.voiceIdentifier = nil } })) {
+                        ForEach(VoiceGenderPreference.allCases, id: \.self) { Text(model.t($0.title)).tag($0) }
+                    }
+                    Toggle(model.t("Stüdyo ses işleme", "Studio voice processing"),
+                           isOn: Binding(get: { model.data.settings.voiceEnhancement }, set: { v in model.updateSettings { $0.voiceEnhancement = v } }))
+                    if !model.voice.activeVoiceDescription.isEmpty {
+                        LabeledContent(model.t("Kullanılan ses", "Voice in use"), value: model.voice.activeVoiceDescription)
+                            .font(Theme.caption)
+                    }
+                    if model.voice.suggestVoiceDownload {
+                        Text(model.t("Daha doğal bir ses için iPhone Ayarlar > Erişilebilirlik > Seslendirilen İçerik > Sesler > Türkçe/English bölümünden \"Gelişmiş\" veya \"Premium\" bir ses indir. JARVIS indirilen sesi otomatik kullanır.",
+                                     "For a more natural voice, download an \"Enhanced\" or \"Premium\" voice in iPhone Settings > Accessibility > Spoken Content > Voices. JARVIS uses it automatically."))
+                            .font(Theme.caption).foregroundStyle(Theme.warning)
+                    }
                     Button(model.t("Sesi dene", "Test voice")) {
                         model.voice.say(model.t("Merhaba, ben JARVIS. Hazır olduğunda başlayalım.", "Hi, I'm JARVIS. Let's start when you're ready."), priority: .high)
                     }

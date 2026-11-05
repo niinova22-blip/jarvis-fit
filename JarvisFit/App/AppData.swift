@@ -13,6 +13,10 @@ struct AppSettings: Codable, Equatable {
     var performance: PerformancePreference = .automatic
     /// Developer option: keep the raw pose stream of live workouts to validate rep counting.
     var recordPoseData = false
+    /// Male voice for male users, female voice for female users (unless changed).
+    var voiceGender: VoiceGenderPreference = .matchUser
+    /// Studio-style processing (EQ, compression, subtle room) on JARVIS's voice.
+    var voiceEnhancement = true
 
     init() {}
 
@@ -30,6 +34,8 @@ struct AppSettings: Codable, Equatable {
         savePhotos = c.value(.savePhotos, d.savePhotos)
         performance = c.value(.performance, d.performance)
         recordPoseData = c.value(.recordPoseData, d.recordPoseData)
+        voiceGender = c.value(.voiceGender, d.voiceGender)
+        voiceEnhancement = c.value(.voiceEnhancement, d.voiceEnhancement)
     }
 
     private static let defaults = AppSettings()

@@ -184,3 +184,44 @@ final class OnboardingVoiceTests: XCTestCase {
         XCTAssertTrue(apply("geri dön", .goal).goBack)
     }
 }
+
+final class VoiceSelectionTests: XCTestCase {
+    let voices = [
+        VoiceCandidate(identifier: "tr.yelda.compact", name: "Yelda", language: "tr-TR", gender: .female, quality: 0),
+        VoiceCandidate(identifier: "tr.yelda.enhanced", name: "Yelda", language: "tr-TR", gender: .female, quality: 1),
+        VoiceCandidate(identifier: "tr.cem", name: "Cem", language: "tr-TR", gender: .male, quality: 0),
+        VoiceCandidate(identifier: "en.ava.premium", name: "Ava", language: "en-US", gender: .female, quality: 2),
+        VoiceCandidate(identifier: "en.evan.enhanced", name: "Evan", language: "en-US", gender: .male, quality: 1),
+        VoiceCandidate(identifier: "en.bells", name: "Bells", language: "en-US", gender: .unknown, quality: 2, isNovelty: true),
+        VoiceCandidate(identifier: "en.me", name: "Me", language: "en-US", gender: .male, quality: 2, isPersonalVoice: true),
+    ]
+
+    func testGenderMatchesUser() {
+        XCTAssertEqual(VoiceSelector.desiredGender(.matchUser, userSex: .male), .male)
+        XCTAssertEqual(VoiceSelector.desiredGender(.matchUser, userSex: .female), .female)
+        XCTAssertEqual(VoiceSelector.desiredGender(.matchUser, userSex: .unspecified), .female)
+        XCTAssertEqual(VoiceSelector.desiredGender(.male, userSex: .female), .male)
+    }
+
+    func testPicksBestVoiceOfWantedGender() {
+        XCTAssertEqual(VoiceSelector.best(from: voices, language: .turkish, gender: .female)?.voice.identifier, "tr.yelda.enhanced")
+        // Gender beats quality: a compact male voice is preferred over an enhanced female one for a man.
+        XCTAssertEqual(VoiceSelector.best(from: voices, language: .turkish, gender: .male)?.voice.identifier, "tr.cem")
+        // Novelty and Personal Voice are never auto-selected.
+        XCTAssertEqual(VoiceSelector.best(from: voices, language: .english, gender: .male)?.voice.identifier, "en.evan.enhanced")
+        XCTAssertEqual(VoiceSelector.best(from: voices, language: .english, gender: .female)?.voice.identifier, "en.ava.premium")
+    }
+
+    func testFallsBackAndSuggestsDownload() {
+        let onlyFemale = voices.filter { $0.gender != .male }
+        let result = VoiceSelector.best(from: onlyFemale, language: .turkish, gender: .male)!
+        XCTAssertFalse(result.genderMatched)
+        XCTAssertTrue(VoiceSelector.shouldSuggestDownload(result.voice, wanted: .male))
+        XCTAssertFalse(VoiceSelector.shouldSuggestDownload(voices[3], wanted: .female))
+    }
+
+    func testProsodyPerPersonality() {
+        XCTAssertGreaterThan(VoiceProsody.for(.energetic).rateMultiplier, VoiceProsody.for(.calm).rateMultiplier)
+        XCTAssertGreaterThan(VoiceProsody.for(.calm).postDelay, VoiceProsody.for(.energetic).postDelay)
+    }
+}
