@@ -1,0 +1,15 @@
+.build/
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+!*.xcodeproj/project.xcworkspace/
+DerivedData/
+xcuserdata/
+*.ipa
+*.dSYM.zip
+*.p8
+*.p12
+*.mobileprovision
+.DS_Store
+Packages/JarvisCore/Package.resolved
+__pycache__/
