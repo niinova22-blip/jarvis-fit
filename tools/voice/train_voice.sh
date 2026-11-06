@@ -2,11 +2,14 @@
 # Fine-tunes one JARVIS voice with Piper from the LJ Speech medium checkpoint (public-domain data), using our own
 # phonemes (`--data.phoneme_type text`, see phonemes.py), then exports ONNX for the app.
 #
-#   bash train_voice.sh tr jarvis_tr_george 1000 [BATCH]
+#   bash train_voice.sh tr jarvis_tr_george 1000 [BATCH] [extra piper flags...]
 #   bash train_voice.sh en jarvis_en_michael 1000 [BATCH]
 #   bash train_voice.sh tr jarvis_tr_george export     # export the latest checkpoint only
+#
+# Speed: 6 data workers (Piper's default of 1 starves the GPU), validation every 25 epochs without the CPU-side
+# UTMOS score, bf16 mixed precision.
 set -euo pipefail
-LANG_CODE=$1; NAME=$2; EPOCHS=$3; BATCH=${4:-16}
+LANG_CODE=$1; NAME=$2; EPOCHS=$3; BATCH=${4:-16}; EXTRA=("${@:5}")
 ROOT=/root/voice
 RUN=$ROOT/runs/$NAME
 OUT=$ROOT/out
@@ -25,10 +28,15 @@ if [ "$EPOCHS" != "export" ]; then
     --data.config_path "$OUT/$NAME.onnx.json" \
     --data.batch_size "$BATCH" \
     --data.num_test_examples 5 \
+    --data.num_workers 6 \
     --model.sample_rate 22050 \
+    --model.mos_metric none \
     --model.warmstart_ckpt "$ROOT/base/en/en_US/ljspeech/medium/lj-med_1000.ckpt" \
     --trainer.max_epochs "$EPOCHS" \
+    --trainer.check_val_every_n_epoch 25 \
+    --trainer.precision bf16-mixed \
     --trainer.default_root_dir "$RUN" \
+    "${EXTRA[@]}" \
     2>&1 | tee -a "$RUN/train.log"
 fi
 
