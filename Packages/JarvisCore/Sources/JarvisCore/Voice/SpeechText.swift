@@ -52,6 +52,26 @@ public enum SpeechText {
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Splits prepared text into sentences so a neural voice can start speaking after the first one.
+    /// "a.m." / "p.m." do not end a sentence.
+    public static func sentences(_ text: String) -> [String] {
+        var result: [String] = []
+        var current = ""
+        let chars = Array(text)
+        for (i, ch) in chars.enumerated() {
+            current.append(ch)
+            guard ".!?…;".contains(ch), i + 1 == chars.count || chars[i + 1] == " " else { continue }
+            if ch == ".", current.hasSuffix("a.m.") || current.hasSuffix("p.m."),
+               i + 2 < chars.count, chars[i + 2].isLowercase { continue }
+            let sentence = current.trimmingCharacters(in: .whitespaces)
+            if !sentence.isEmpty { result.append(sentence) }
+            current = ""
+        }
+        let rest = current.trimmingCharacters(in: .whitespaces)
+        if !rest.isEmpty { result.append(rest) }
+        return result
+    }
+
     // MARK: Numbers
 
     public static func spell(_ n: Int, language: AppLanguage) -> String {
@@ -211,7 +231,7 @@ public enum SpeechText {
         ("jumping jack", "camping cek"), ("biceps curl", "bayseps körl"), ("biceps", "bayseps"),
         ("glute bridge", "glut briç"), ("shoulder press", "şoldır pres"), ("lateral raise", "laterıl reyz"),
         ("squat", "skuat"), ("lunge", "lanç"), ("plank", "plenk"), ("press", "pres"), ("crunch", "kranç"),
-        ("deadlift", "dedlift"), ("burpee", "börpi"), ("cardio", "kardiyo"), ("fit check", "fit çek")
+        ("deadlift", "dedlift"), ("burpee", "börpi"), ("cardio", "kardiyo"), ("fit check", "fit çek"), ("iphone", "ayfon")
     ]
     /// All-caps names are spelled letter by letter by English voices.
     private static let englishLexicon: [(String, String)] = [("jarvis fit", "Jarvis Fit"), ("jarvis", "Jarvis")]

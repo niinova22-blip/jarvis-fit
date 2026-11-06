@@ -43,6 +43,8 @@ struct SettingsView: View {
                                                                                set: { v in model.updateSettings { $0.voiceGender = v; $0.voiceIdentifier = nil } })) {
                         ForEach(VoiceGenderPreference.allCases, id: \.self) { Text(model.t($0.title)).tag($0) }
                     }
+                    Toggle(model.t("JARVIS'in kendi sesi (erkek, cihazda)", "JARVIS's own voice (male, on device)"),
+                           isOn: Binding(get: { model.data.settings.neuralVoice }, set: { v in model.updateSettings { $0.neuralVoice = v } }))
                     Toggle(model.t("Stüdyo ses işleme", "Studio voice processing"),
                            isOn: Binding(get: { model.data.settings.voiceEnhancement }, set: { v in model.updateSettings { $0.voiceEnhancement = v } }))
                     if !model.voice.activeVoiceDescription.isEmpty {
@@ -101,6 +103,7 @@ struct SettingsView: View {
                 Section(model.t("Gizlilik", "Privacy")) {
                     Button(model.t("JARVIS'in hafızası", "JARVIS memory")) { showMemory = true }
                     NavigationLink(model.t("Gizlilik politikası", "Privacy policy")) { PrivacyPolicyView() }
+                    NavigationLink(model.t("Lisanslar", "Licences")) { LicensesView() }
                     Toggle(model.t("Fit Check fotoğraflarını sakla", "Keep Fit Check photos"),
                            isOn: Binding(get: { model.data.settings.savePhotos }, set: { v in model.updateSettings { $0.savePhotos = v } }))
                     Text(model.t("Kamera görüntüsü, ses ve tüm verilerin yalnızca bu iPhone'da işlenir ve saklanır. Sunucumuz yoktur; satın alma doğrulaması için yalnızca Apple'ın App Store hizmetleri kullanılır.",

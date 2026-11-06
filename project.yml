@@ -10,6 +10,9 @@ options:
 packages:
   JarvisCore:
     path: Packages/JarvisCore
+  onnxruntime:
+    url: https://github.com/microsoft/onnxruntime-swift-package-manager
+    from: 1.20.0
 
 settings:
   base:
@@ -32,6 +35,8 @@ targets:
       - path: JarvisFit
     dependencies:
       - package: JarvisCore
+      - package: onnxruntime
+        product: onnxruntime
     info:
       path: JarvisFit/Resources/Info.plist
       properties:

@@ -48,6 +48,12 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     private let playerFormat = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
     /// "Name · Quality"; the voice's native sample rate is appended once the first buffer arrives.
     private var voiceBaseDescription = ""
+    /// JARVIS's own voice (bundled Piper model) when it applies; otherwise Apple voices are used.
+    private var neuralVoice: NeuralVoice?
+    private var neuralEnabled = true
+    private var neuralLoadKey: String?
+    private let synthesisQueue = DispatchQueue(label: "jarvis.neural-voice", qos: .userInitiated)
+    private var synthesisToken: SynthesisToken?
     private let synthesizer = AVSpeechSynthesizer()
     private var engineConfigured = false
     private var inputEnabled = false
@@ -81,16 +87,18 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     }
 
     func configure(language: AppLanguage, personality: CoachPersonality, voiceIdentifier: String?,
-                   gender: VoiceCandidate.Gender = .female, enhancement: Bool = true) {
+                   gender: VoiceCandidate.Gender = .female, enhancement: Bool = true, neural: Bool = true) {
         let languageChanged = language != self.language || recognizer == nil
         self.language = language
         self.personality = personality
         self.voiceIdentifier = voiceIdentifier
         self.wantedGender = gender
         self.enhancementEnabled = enhancement
+        self.neuralEnabled = neural
         applyEnhancement()
         cachedVoice = nil
         _ = selectedVoice()
+        updateNeuralVoice()
         if languageChanged {
             recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.localeIdentifier))
             onDeviceRecognitionAvailable = recognizer?.supportsOnDeviceRecognition ?? false
@@ -350,6 +358,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
 
     private func interruptCurrent() {
         speechGeneration += 1
+        synthesisToken?.cancel()
         synthesizer.stopSpeaking(at: .immediate)
         player.stop()
         isSpeaking = false
@@ -375,17 +384,23 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         let generation = speechGeneration
 
         // Numbers, units, times and English exercise names are turned into words the voice reads correctly.
-        let utterance = AVSpeechUtterance(string: SpeechText.prepare(item.text, language: language))
+        let text = SpeechText.prepare(item.text, language: language)
         let prosody = VoiceProsody.for(personality)
+        // Rendered to buffers, so the sentence gap is added as silence after the last buffer.
+        let gapFrames = AVAudioFrameCount(max(1, prosody.postDelay * playerFormat.sampleRate))
+        if !player.isPlaying { player.play() }
+        let state = SpeechWriteState()
+
+        if let neural = neuralVoice {
+            speakNeural(text, voice: neural, rate: prosody.rateMultiplier, state: state, gapFrames: gapFrames, generation: generation)
+            return
+        }
+
+        let utterance = AVSpeechUtterance(string: text)
         utterance.voice = selectedVoice()
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(prosody.rateMultiplier)
         utterance.pitchMultiplier = Float(prosody.pitchMultiplier)
         utterance.prefersAssistiveTechnologySettings = false
-        // Rendered with write(), so the sentence gap is added as silence after the last buffer.
-        let gapFrames = AVAudioFrameCount(max(1, prosody.postDelay * playerFormat.sampleRate))
-        if !player.isPlaying { player.play() }
-
-        let state = SpeechWriteState()
         synthesizer.write(utterance) { [weak self] buffer in
             guard let pcm = buffer as? AVAudioPCMBuffer else { return }
             // DispatchQueue.main keeps buffer order (FIFO).
@@ -393,27 +408,60 @@ final class VoiceCoordinator: NSObject, ObservableObject {
                 MainActor.assumeIsolated {
                     guard let self, generation == self.speechGeneration else { return }
                     if pcm.frameLength == 0 {
-                        guard state.scheduledAny else {
-                            self.speakNext()
-                            return
-                        }
-                        // End of utterance: continue when the last buffer has been played.
-                        guard let marker = AVAudioPCMBuffer(pcmFormat: self.playerFormat, frameCapacity: gapFrames) else { return }
-                        marker.frameLength = gapFrames
-                        self.player.scheduleBuffer(marker, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-                            DispatchQueue.main.async {
-                                MainActor.assumeIsolated {
-                                    guard let self, generation == self.speechGeneration else { return }
-                                    self.speakNext()
-                                }
-                            }
-                        }
-                        return
+                        self.finishUtterance(state: state, gapFrames: gapFrames, generation: generation)
+                    } else {
+                        self.schedule(pcm, state: state)
                     }
-                    if let converted = self.convert(pcm) {
-                        state.scheduledAny = true
-                        self.player.scheduleBuffer(converted, completionHandler: nil)
+                }
+            }
+        }
+    }
+
+    /// Own neural voice: sentence by sentence on a background queue, so playback starts after the first sentence.
+    private func speakNeural(_ text: String, voice: NeuralVoice, rate: Double, state: SpeechWriteState,
+                             gapFrames: AVAudioFrameCount, generation: Int) {
+        let token = SynthesisToken()
+        synthesisToken = token
+        let sentences = SpeechText.sentences(text)
+        synthesisQueue.async { [weak self] in
+            for sentence in sentences {
+                guard !token.isCancelled else { return }
+                let buffer = voice.synthesize(sentence, rate: rate)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self, let buffer, generation == self.speechGeneration else { return }
+                        self.schedule(buffer, state: state)
                     }
+                }
+            }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, generation == self.speechGeneration else { return }
+                    self.finishUtterance(state: state, gapFrames: gapFrames, generation: generation)
+                }
+            }
+        }
+    }
+
+    private func schedule(_ pcm: AVAudioPCMBuffer, state: SpeechWriteState) {
+        guard let converted = convert(pcm) else { return }
+        state.scheduledAny = true
+        player.scheduleBuffer(converted, completionHandler: nil)
+    }
+
+    /// End of utterance: continue with the queue once the last buffer (plus the sentence gap) has played.
+    private func finishUtterance(state: SpeechWriteState, gapFrames: AVAudioFrameCount, generation: Int) {
+        guard state.scheduledAny else {
+            speakNext()
+            return
+        }
+        guard let marker = AVAudioPCMBuffer(pcmFormat: playerFormat, frameCapacity: gapFrames) else { return }
+        marker.frameLength = gapFrames
+        player.scheduleBuffer(marker, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, generation == self.speechGeneration else { return }
+                    self.speakNext()
                 }
             }
         }
@@ -441,6 +489,40 @@ final class VoiceCoordinator: NSObject, ObservableObject {
             return buffer
         }
         return error == nil && output.frameLength > 0 ? output : nil
+    }
+
+    /// Loads JARVIS's own voice for the language in the background (the model is tens of MB).
+    private func updateNeuralVoice() {
+        guard NeuralVoiceCatalog.shouldUse(enabled: neuralEnabled, wantedGender: wantedGender, manualVoicePicked: voiceIdentifier != nil) else {
+            neuralVoice = nil
+            neuralLoadKey = nil
+            return
+        }
+        let key = language.rawValue
+        guard neuralLoadKey != key else {
+            if neuralVoice != nil { showNeuralDescription() }
+            return
+        }
+        neuralLoadKey = key
+        neuralVoice = nil
+        let language = language
+        synthesisQueue.async { [weak self] in
+            let voice = NeuralVoice.load(language: language)
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, self.neuralLoadKey == key else { return }
+                    self.neuralVoice = voice
+                    if voice != nil { self.showNeuralDescription() }
+                }
+            }
+        }
+    }
+
+    private func showNeuralDescription() {
+        voiceBaseDescription = "JARVIS · " + (language == .turkish ? "Özel ses" : "Custom voice")
+        activeVoiceDescription = voiceBaseDescription
+        suggestVoiceDownload = false
+        converterInputFormat = nil
     }
 
     private func selectedVoice() -> AVSpeechSynthesisVoice? {

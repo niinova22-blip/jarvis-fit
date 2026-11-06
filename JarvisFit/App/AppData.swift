@@ -17,6 +17,8 @@ struct AppSettings: Codable, Equatable {
     var voiceGender: VoiceGenderPreference = .matchUser
     /// Studio-style processing (EQ, compression, subtle room) on JARVIS's voice.
     var voiceEnhancement = true
+    /// JARVIS's own on-device voice (used for male voice when bundled); off = Apple voices only.
+    var neuralVoice = true
 
     init() {}
 
@@ -36,6 +38,7 @@ struct AppSettings: Codable, Equatable {
         recordPoseData = c.value(.recordPoseData, d.recordPoseData)
         voiceGender = c.value(.voiceGender, d.voiceGender)
         voiceEnhancement = c.value(.voiceEnhancement, d.voiceEnhancement)
+        neuralVoice = c.value(.neuralVoice, d.neuralVoice)
     }
 
     private static let defaults = AppSettings()

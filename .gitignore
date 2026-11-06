@@ -13,3 +13,7 @@ xcuserdata/
 .DS_Store
 Packages/JarvisCore/Package.resolved
 __pycache__/
+
+# Voice models are published as GitHub release assets (voices-v1), not committed.
+JarvisFit/Resources/Voices/*.onnx
+JarvisFit/Resources/Voices/*.onnx.json

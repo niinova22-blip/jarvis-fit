@@ -128,7 +128,7 @@ final class AppModel: ObservableObject {
         guard let profile = data.profile else { return }
         let gender = VoiceSelector.desiredGender(data.settings.voiceGender, userSex: profile.sex)
         voice.configure(language: profile.language, personality: profile.personality, voiceIdentifier: data.settings.voiceIdentifier,
-                        gender: gender, enhancement: data.settings.voiceEnhancement)
+                        gender: gender, enhancement: data.settings.voiceEnhancement, neural: data.settings.neuralVoice)
     }
 
     // MARK: Mutations

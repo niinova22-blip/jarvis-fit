@@ -35,6 +35,11 @@ jobs:
         run: |
           brew install xcodegen
           xcodebuild -version
+      - name: Voice models (GitHub release "voices-v1"; Apple voices are used when absent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download voices-v1 -R "$GITHUB_REPOSITORY" -D JarvisFit/Resources/Voices -p "jarvis_*" --clobber             && ls -la JarvisFit/Resources/Voices || echo "No voice models published yet"
       - name: Generate project
         run: xcodegen generate
       - name: Pick simulator
