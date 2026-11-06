@@ -18,9 +18,10 @@ python -c "import torch,sys; sys.exit(0 if torch.version.cuda and torch.version.
 ./build_monotonic_align.sh > /dev/null
 python setup.py build_ext --inplace > /dev/null 2>&1 || true
 mkdir -p /root/voice/base
-python - <<'PY'
+# huggingface_hub lives in the teacher venv; the checkpoints repo is a dataset repo.
+/root/voice/.venv-kokoro/bin/python - <<'PY'
 from huggingface_hub import hf_hub_download
 for f in ["en/en_US/ljspeech/medium/lj-med_1000.ckpt", "en/en_US/ljspeech/medium/config.json", "en/en_US/ljspeech/medium/MODEL_CARD"]:
-    print(hf_hub_download("rhasspy/piper-checkpoints", f, local_dir="/root/voice/base"))
+    print(hf_hub_download("rhasspy/piper-checkpoints", f, repo_type="dataset", local_dir="/root/voice/base"))
 PY
 python -c "import torch, piper.train; print('piper train ok, torch', torch.__version__, torch.cuda.is_available())"
