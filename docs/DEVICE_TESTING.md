@@ -35,6 +35,15 @@ Güvenlik: "başım dönüyor" → antrenman durur.
 - JARVIS konuşurken "dur" ile araya girme.
 - Türkçe çevrimdışı tanıma (Uçak modu açıkken).
 - Bluetooth kulaklıkla çalışma.
+- Ses kalitesi (Ayarlar › Ses › "Kullanılan ses" satırı ad, kalite ve sesin kendi örnekleme hızını gösterir):
+  - Türkçe erkek sistem sesi var mı? Yoksa hangi ses seçiliyor?
+  - Sesin örnekleme hızı kaç kHz? 22 kHz ise 48 kHz çıkışın etkisi yoktur; daha yüksekse "Ses iyileştirme" açık/kapalı
+    karşılaştır.
+  - Mikrofon açıkken (eko engelleme devrede) ve kapalıyken ses aynı netlikte mi? (Ses işleme çıkışı düşük hıza
+    çekiyor olabilir.)
+  - Okunuş: "140 g protein", "2,5 kg", "3x12", "60–90 sn", "saat 19:00'da", "2. set", "%20", "squat / lunge /
+    biceps curl / plank" ve "JARVIS" doğru okunuyor mu? Yanlış okunanları `SpeechText` sözlüğüne ekle.
+  - Müzik çalarken JARVIS anlaşılıyor mu? (Şu an müzik kısılmıyor, `.mixWithOthers`.)
 
 ## 4. Performans (iPhone 15 Pro, 30 dk antrenman)
 Instruments ile: pose işleme FPS (hedef ≥25), ses gecikmesi (komut → yanıt < 1,5 sn), bellek (< 300 MB),

@@ -7,6 +7,13 @@
 - **Stüdyo ses işleme**: EQ (90 Hz high-pass, 280 Hz −2 dB, 3,5 kHz +2,5 dB, 10 kHz +1,5 dB raf) → kompresör
   (−20 dB eşik, +4 dB kazanç) → çok hafif küçük oda yankısı (%6). Ayarlar'dan kapatılabilir.
 - **Kişiliğe göre tonlama**: hız, perde ve cümle arası sessizlik (`VoiceProsody`).
+- **Okunuş hazırlığı** (`SpeechText`, JarvisCore, 12 test): her cümle seslendirilmeden önce sayılar, birimler
+  (g, kg, kcal, sn, g/kg…), saatler, aralıklar (60–90), set×tekrar (3x12), yüzdeler, sıra sayıları (2. set / 2nd) ve
+  ondalıklar (1,5 → "bir buçuk") yazıya çevrilir; markdown, liste işaretleri ve emoji silinir. Türkçe seste İngilizce
+  hareket adları Türkçe okunuşla yazılır (squat → skuat, lunge → lanç, biceps curl → bayseps körl, JARVIS → Carvis).
+  Kendi ses modelimiz için de gerekli (sinirsel model rakam/kısaltma okuyamaz).
+- **Çıkış 48 kHz** (önceden 22,05 kHz, üst frekanslar kesiliyordu). Ayarlar'da sesin kendi örnekleme hızı
+  görünür; gerçek etkisi cihazda dinlenmeli.
 - Daha iyi bir ses indirilebiliyorsa Ayarlar'da yol gösterilir (iOS Ayarlar › Erişilebilirlik › Seslendirilen İçerik › Sesler).
 - **Sınır**: iOS'ta Türkçe için erkek sistem sesi olmayabilir (cihazda kontrol edilecek). Yoksa erkek kullanıcıya en iyi
   kadın ses düşer — özel Türkçe erkek ses modeli bu yüzden önemli.
@@ -45,6 +52,29 @@ cihazda dinlenip gerekirse Kokoro (Apache 2.0) eklenir.
 - Gerçek kalite artışı için önerilen yol: kendi kaydımız (bir erkek + bir kadın, ~1.500 cümle, 44 kHz).
 - Hazır ortam: WSL2 Ubuntu, `/root/voice/.venv` (PyTorch 2.11 + CUDA 12.8, RTX 5070 doğrulandı, `tools/voice/setup_env.sh`),
   ISSAI açılmış hâlde `/root/voice/data/ISSAI_TSC_218` (25 GB).
+
+## Öğretmen model yolu (2026-11-06/07) — gerçek kişiye ait olmayan Türkçe erkek ses
+Gerçek bir kişinin sesini kopyalamadan Türkçe erkek ses elde etmek için:
+1. Kokoro-82M (Apache 2.0) ile yapay İngilizce erkek sesler üretilir (`tools/voice/make_samples.py en`).
+2. Chatterbox Multilingual (MIT) bu yapay sesi referans alıp aynı tınıyla Türkçe konuşur (`make_samples.py tr`).
+   Ortam: `tools/voice/setup_teachers.sh` (WSL, `/root/voice/.venv-kokoro`, `.venv-chatterbox`).
+3. Seçilen sesle binlerce Türkçe cümle üretilir, Whisper ile anlaşılırlığı düşük olanlar elenir, bu veriyle Piper
+   modeli eğitilir (aşağıdaki plan, adım 3–5).
+
+**Anlaşılırlık ölçümü** (2026-11-07, `tools/voice/asr_check.py`, Whisper large-v3-turbo, 1 test cümlesi; sayılar
+yazıya çevrilerek karşılaştırılır):
+
+| Ses | Karakter hata oranı | Hata |
+|---|---|---|
+| am_michael | %0,0 | — |
+| bm_george | %0,0 | — |
+| am_fenrir | %0,6 | "Sırzını" |
+| am_onyx | %0,6 | "Sıvtını" |
+| bm_fable | %0,6 | "antrenmanım" |
+| am_puck | %2,2 | "antrenmanım", "üst et" |
+
+Bu yalnızca anlaşılırlık; doğallık ve İngiliz aksanı dinleyerek değerlendirilmeli. Örnekler:
+`\\wsl.localhost\Ubuntu\root\voice\samples`. **Sıradaki adım: kullanıcı dinleyip sesi seçer** (aday: michael / george).
 
 ## Eğitim planı (ileride; bu bilgisayar: RTX 5070 12 GB)
 1. **Ortam**: WSL2 + Ubuntu (kullanıcı kurar: `wsl --install -d Ubuntu`, yeniden başlatma), CUDA 12.8 + PyTorch ≥ 2.7

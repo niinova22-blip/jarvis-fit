@@ -1,4 +1,5 @@
 """Intelligibility check: transcribe generated Turkish samples with Whisper and report character error rate."""
+import re
 import sys
 from pathlib import Path
 
@@ -10,7 +11,31 @@ TR = ("Günaydın Mert. Bugün saat yedide bacak antrenmanın var, günlük prot
       "Hadi başlıyoruz! Üç tekrar kaldı. Sırtını dik tut. Harika bir set. Şimdi altmış saniye dinlen.")
 
 
+ONES = ["", "bir", "iki", "üç", "dört", "beş", "altı", "yedi", "sekiz", "dokuz"]
+TENS = ["", "on", "yirmi", "otuz", "kırk", "elli", "altmış", "yetmiş", "seksen", "doksan"]
+
+
+def tr_words(n: int) -> str:
+    """Turkish number words (same rules as SpeechText.spell in the app)."""
+    if n == 0:
+        return "sıfır"
+    words = []
+    for scale, name in ((1_000_000, "milyon"), (1000, "bin")):
+        if n >= scale:
+            count, n = divmod(n, scale)
+            if not (scale == 1000 and count == 1):
+                words.append(tr_words(count))
+            words.append(name)
+    hundreds, rest = divmod(n, 100)
+    if hundreds:
+        words += ([ONES[hundreds]] if hundreds > 1 else []) + ["yüz"]
+    words += [w for w in (TENS[rest // 10], ONES[rest % 10]) if w]
+    return " ".join(words)
+
+
 def normalize(text: str) -> str:
+    # Whisper writes numbers as digits ("7'de", "140"); spell them so only real mistakes count.
+    text = re.sub(r"(\d+)['’]?", lambda m: tr_words(int(m.group(1))), text)
     text = text.replace("I", "ı").replace("İ", "i").lower()
     return " ".join("".join(c if c.isalnum() else " " for c in text).split())
 

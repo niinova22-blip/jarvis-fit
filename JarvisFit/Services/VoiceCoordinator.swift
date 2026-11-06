@@ -43,7 +43,11 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         componentType: kAudioUnitType_Effect, componentSubType: kAudioUnitSubType_DynamicsProcessor,
         componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0))
     private let reverb = AVAudioUnitReverb()
-    private let playerFormat = AVAudioFormat(standardFormatWithSampleRate: 22_050, channels: 1)!
+    // 48 kHz so voices that render above 22 kHz keep their top end (and the 10 kHz "air" shelf has
+    // something to work on); lower-rate voices are upsampled, which costs nothing audible.
+    private let playerFormat = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+    /// "Name · Quality"; the voice's native sample rate is appended once the first buffer arrives.
+    private var voiceBaseDescription = ""
     private let synthesizer = AVSpeechSynthesizer()
     private var engineConfigured = false
     private var inputEnabled = false
@@ -370,7 +374,8 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         speechGeneration += 1
         let generation = speechGeneration
 
-        let utterance = AVSpeechUtterance(string: item.text)
+        // Numbers, units, times and English exercise names are turned into words the voice reads correctly.
+        let utterance = AVSpeechUtterance(string: SpeechText.prepare(item.text, language: language))
         let prosody = VoiceProsody.for(personality)
         utterance.voice = selectedVoice()
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(prosody.rateMultiplier)
@@ -418,6 +423,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         if converterInputFormat != buffer.format {
             converter = AVAudioConverter(from: buffer.format, to: playerFormat)
             converterInputFormat = buffer.format
+            activeVoiceDescription = voiceBaseDescription + String(format: " · %.1f kHz", buffer.format.sampleRate / 1000)
         }
         guard let converter else { return nil }
         let ratio = playerFormat.sampleRate / buffer.format.sampleRate
@@ -457,7 +463,9 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         cachedVoice = voice
         if let voice {
             let quality = voice.quality == .premium ? "Premium" : voice.quality == .enhanced ? "Enhanced" : "Standard"
-            activeVoiceDescription = "\(voice.name) · \(quality)"
+            voiceBaseDescription = "\(voice.name) · \(quality)"
+            activeVoiceDescription = voiceBaseDescription
+            converterInputFormat = nil // re-read the native rate of the new voice
         }
         return voice
     }

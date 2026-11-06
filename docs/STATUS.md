@@ -1,12 +1,12 @@
 # JARVIS FIT — Geliştirme Durumu
 
-_Son güncelleme: 2026-11-05 (2. oturum)_
+_Son güncelleme: 2026-11-07_
 
 ## Özet
 
 | Alan | Durum | Doğrulama |
 |---|---|---|
-| JarvisCore (platformdan bağımsız mantık) | ✅ Tamam | 85 otomatik test (1 atlanan: gerçek kayıt fixture'ı yok), Windows'ta (Swift 6.4) geçti |
+| JarvisCore (platformdan bağımsız mantık) | ✅ Tamam | 100 otomatik test (1 atlanan: gerçek kayıt fixture'ı yok), Windows'ta (Swift 6.4) geçti |
 | Canlı antrenör algoritmaları (10 hareket) | ✅ Kod + sentetik testler | ⚠️ Gerçek kullanıcı verisiyle doğrulanmadı → poz kayıt aracı hazır |
 | Eller serbest oturum motoru | ✅ Kod + uçtan uca simülasyon testi | ⚠️ Cihazda doğrulanmadı |
 | Poz kaydı + tekrar oynatma (gerçek veriyle doğrulama) | ✅ Kod + testler | Kullanıcı kaydı bekleniyor |
@@ -14,6 +14,7 @@ _Son güncelleme: 2026-11-05 (2. oturum)_
 | iOS uygulaması (SwiftUI) | ✅ Kod | ✅ Xcode 26.3 ile derlendi, 6 uygulama testi geçti |
 | Kamera + Vision poz | ✅ Kod | ❌ Cihaz testi gerekli |
 | Ses (STT/TTS, AEC, araya girme) | ✅ Kod | ❌ Cihaz testi gerekli |
+| Ses kalitesi (cinsiyete göre ses, EQ/kompresör, okunuş hazırlığı, 48 kHz) | ✅ Kod + testler (`SpeechText`) | ❌ Cihazda dinlenmeli — ayrıntı `docs/VOICE.md` |
 | Sesli onboarding (cevapları konuşarak verme) | ✅ Ayrıştırıcı + testler + ekran entegrasyonu | ❌ Cihaz testi gerekli |
 | Yerel LLM (Apple Foundation Models) | ✅ Kod (iOS 26+) | ❌ Cihaz testi gerekli |
 | Planlayıcı, aşamalı yüklenme, kaçırılan antrenmanı taşıma | ✅ Kod + testler | ✅ Birim testleri |
@@ -68,3 +69,5 @@ Yeni sürüm: `gh workflow run TestFlight -R niinova22-blip/jarvis-fit`.
 2. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
    `...yearly` 79,99 USD), gizlilik politikası URL'si (docs/privacy.html barındırılmalı).
 3. App Store adı/marka kontrolü (bkz. RESEARCH.md › Riskler).
+4. Ses: kullanıcı öğretmen-model örneklerini dinleyip Türkçe erkek sesi seçer (michael/george, `docs/VOICE.md`),
+   ardından yapay veri seti üretimi + Piper eğitimi.
