@@ -74,7 +74,24 @@ yazıya çevrilerek karşılaştırılır):
 | am_puck | %2,2 | "antrenmanım", "üst et" |
 
 Bu yalnızca anlaşılırlık; doğallık ve İngiliz aksanı dinleyerek değerlendirilmeli. Örnekler:
-`\\wsl.localhost\Ubuntu\root\voice\samples`. **Sıradaki adım: kullanıcı dinleyip sesi seçer** (aday: michael / george).
+`\\wsl.localhost\Ubuntu\root\voice\samples`.
+
+**Seçim (2026-11-07, kullanıcı):** Türkçe = `bm_george` tınısı (Chatterbox), İngilizce = Kokoro `am_michael`.
+
+## Özel ses hattı (2026-11-07)
+| Adım | Araç | Durum |
+|---|---|---|
+| Cümleler: Common Voice (CC0) + uygulama metinleri + antrenör kalıpları, fonem çifti kapsamasına göre seçim | `build_corpus.py` | ✅ TR 1.383, EN 1.369 cümle |
+| Ses üretimi (TR Chatterbox/george, EN Kokoro/michael), 22,05 kHz, kırpma, seviye eşitleme | `generate_dataset.py` | ✅ EN; TR sürüyor |
+| Whisper ile yanlış okunan kayıtları eleme (CER > %8) | `filter_dataset.py` | ✅ EN 1.360 kayıt / 1,15 sa |
+| Fonemler: kendi dönüştürücümüz (espeak yok); Python ve Swift birebir aynı (1.215 satırlık altın dosya testi) | `phonemes.py`, `Phonemizer.swift` | ✅ |
+| Eğitim ortamı (piper1-gpl, yalnızca bilgisayarda) | `setup_piper.sh` | ⏳ kullanıcı onayı gerekli |
+| İnce ayar: LJ Speech medium (kamu malı) checkpoint'inden, `phoneme_type text` | `train_voice.sh` | ⏳ |
+| Uygulama: ONNX Runtime ile cihazda sentez, cümle cümle; erkek ses istendiğinde kullanılır, yoksa Apple sesi | `NeuralVoice.swift` | ✅ CI'da derleniyor; model bekliyor |
+| Dağıtım: modeller GitHub sürümü `voices-v1` dosyası olarak; CI/TestFlight indirir | iş akışları | ✅ adım hazır |
+
+Neden fettah/dfki checkpoint'i değil: dfki ticari kullanıma kapalı (CC BY-NC-SA), fettah'ın checkpoint'i yok. Piper
+belgelerine göre farklı dilden ince ayar işe yarıyor; LJ Speech verisi kamu malı.
 
 ## Eğitim planı (ileride; bu bilgisayar: RTX 5070 12 GB)
 1. **Ortam**: WSL2 + Ubuntu (kullanıcı kurar: `wsl --install -d Ubuntu`, yeniden başlatma), CUDA 12.8 + PyTorch ≥ 2.7

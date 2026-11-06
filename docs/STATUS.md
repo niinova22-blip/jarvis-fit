@@ -6,7 +6,7 @@ _Son güncelleme: 2026-11-07_
 
 | Alan | Durum | Doğrulama |
 |---|---|---|
-| JarvisCore (platformdan bağımsız mantık) | ✅ Tamam | 100 otomatik test (1 atlanan: gerçek kayıt fixture'ı yok), Windows'ta (Swift 6.4) geçti |
+| JarvisCore (platformdan bağımsız mantık) | ✅ Tamam | 107 otomatik test (1 atlanan: gerçek kayıt fixture'ı yok), Windows'ta (Swift 6.4) geçti |
 | Canlı antrenör algoritmaları (10 hareket) | ✅ Kod + sentetik testler | ⚠️ Gerçek kullanıcı verisiyle doğrulanmadı → poz kayıt aracı hazır |
 | Eller serbest oturum motoru | ✅ Kod + uçtan uca simülasyon testi | ⚠️ Cihazda doğrulanmadı |
 | Poz kaydı + tekrar oynatma (gerçek veriyle doğrulama) | ✅ Kod + testler | Kullanıcı kaydı bekleniyor |
@@ -69,5 +69,5 @@ Yeni sürüm: `gh workflow run TestFlight -R niinova22-blip/jarvis-fit`.
 2. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
    `...yearly` 79,99 USD), gizlilik politikası URL'si (docs/privacy.html barındırılmalı).
 3. App Store adı/marka kontrolü (bkz. RESEARCH.md › Riskler).
-4. Ses: kullanıcı öğretmen-model örneklerini dinleyip Türkçe erkek sesi seçer (michael/george, `docs/VOICE.md`),
-   ardından yapay veri seti üretimi + Piper eğitimi.
+4. Ses: özel erkek sesler (TR george, EN michael) — veri hazır/hazırlanıyor, uygulama motoru hazır; Piper eğitim
+   ortamı kurulumu (`tools/voice/setup_piper.sh`) ve eğitim bekliyor. Ayrıntı: `docs/VOICE.md` › Özel ses hattı.
