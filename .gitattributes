@@ -1,3 +1,4 @@
 * text=auto eol=lf
 *.png binary
 *.p8 binary
+*.sh text eol=lf

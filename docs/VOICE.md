@@ -35,7 +35,18 @@ fonem dönüştürücümüz (Türkçe yazım sese çok yakın) çalışır ve es
 **İngilizce için öneri:** Apple'ın Premium İngilizce sesleri (ör. kadın/erkek, ücretsiz, cihazda) çok iyi; önce
 cihazda dinlenip gerekirse Kokoro (Apache 2.0) eklenir.
 
-## Eğitim planı (bu bilgisayar: RTX 5070 12 GB)
+## Karar (2026-11-06)
+Şimdilik **Apple sesleri + C iyileştirmeleri** (build 105). Özel ses eğitimi ertelendi.
+- Commencis veri seti Hugging Face'ten kaldırılmış (404).
+- ISSAI TSC indirildi ve incelendi: 179.258 kayıt / ~208 saat ama **16 kHz**, TV/yayın kaynaklı kendiliğinden konuşma,
+  konuşmacı bilgisi yok. Tek bir konuşmacıyı ayıklayıp eğitmek tanınabilir gerçek bir kişinin sesini izinsiz kopyalamak
+  olur → yapılmamalı. Mümkün olan tek temiz yol: çok konuşmacılı model + ortalama (gerçek kişiye ait olmayan) ses; 16 kHz
+  ve gürültü yüzünden kalite beklentisi düşük.
+- Gerçek kalite artışı için önerilen yol: kendi kaydımız (bir erkek + bir kadın, ~1.500 cümle, 44 kHz).
+- Hazır ortam: WSL2 Ubuntu, `/root/voice/.venv` (PyTorch 2.11 + CUDA 12.8, RTX 5070 doğrulandı, `tools/voice/setup_env.sh`),
+  ISSAI açılmış hâlde `/root/voice/data/ISSAI_TSC_218` (25 GB).
+
+## Eğitim planı (ileride; bu bilgisayar: RTX 5070 12 GB)
 1. **Ortam**: WSL2 + Ubuntu (kullanıcı kurar: `wsl --install -d Ubuntu`, yeniden başlatma), CUDA 12.8 + PyTorch ≥ 2.7
    (RTX 50 serisi için gerekli), Piper eğitim kodu (yalnızca bilgisayarda; model ağırlıkları bizim olur).
 2. **Veri**: Commencis erkek + kadın kayıtları (CC BY 4.0; HF'de koşulları kabul etmek gerekiyor); gerekirse ISSAI'den
