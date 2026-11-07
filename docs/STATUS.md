@@ -4,11 +4,12 @@ _Son güncelleme: 2026-11-08_
 
 ## 2026-11-08 — Yeniden markalama + App Store reddi düzeltmesi
 
-- **ITMS-90208 (1.0 build 106 reddedildi):** `onnxruntime.framework` (özel sesler için ONNX Runtime) aslında
-  `.framework` içinde **statik** kütüphane (`!<arch>`). Kod zaten uygulama ikilisine bağlanıyor, ama Xcode SPM
-  üzerinden onu bir de `Frameworks/` içine kopyalıyordu; Apple bu paketi reddetti. Düzeltme `testflight.yml`:
-  arşivden sonra statik framework'ler silinir (exportArchive yeniden imzalar), IPA'da statik framework kalırsa
-  iş akışı hata verir. Ek kazanç: IPA ~40 MB küçülür.
+- **ITMS-90208 (1.0 build 106 ve 108 reddedildi):** `onnxruntime.framework`'ün Info.plist'i
+  `MinimumOSVersion 15.1` diyor, ama Xcode framework ikilisini uygulamanın hedefiyle (iOS 17) bağlıyor; Apple
+  ikilinin minimum sürümü ile Info.plist uyuşmadığı için reddediyor. (İlk tahmin "statik framework" yanlıştı:
+  arşivdeki ikili dinamik; o adım hiçbir şeyi silmedi.) Düzeltme `testflight.yml`: arşivden sonra her gömülü
+  framework'ün Info.plist'ine ikilinin gerçek `minos` değeri yazılır (exportArchive yeniden imzalar); IPA'da
+  uyuşmazlık kalırsa iş akışı hata verir.
 - **Yeni ad: NOVA Coach**, asistanın adı **NOVA** ("JARVIS" Marvel/Disney markası riskini kaldırır). Uyandırma
   kelimesi "Nova" (eski "Jarvis" de hâlâ anlaşılır). Bundle ID, hedef/tip adları (JarvisCore, JarvisFit) ve
   abonelik ürün kimlikleri değişmedi. **App Store Connect'teki uygulama adı elle "NOVA Coach" yapılmalı.**

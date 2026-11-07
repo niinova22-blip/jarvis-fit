@@ -97,35 +97,27 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -E "error:" "$RUNNER_TEMP/archive.log" | sort -u | head -100; tail -30 "$RUNNER_TEMP/archive.log"; exit 1; }
           tail -5 "$RUNNER_TEMP/archive.log"
 
-      - name: Remove embedded static frameworks (ITMS-90208)
-        # onnxruntime's SPM xcframework is a *static* library wrapped in a .framework. It is already
-        # linked into the app binary, but Xcode also copies it into Frameworks/, and App Store
-        # Connect rejects a framework without a dynamic binary (ITMS-90208). Every embedded framework
-        # whose binary is missing or not a dynamic library is removed; exportArchive re-signs.
+      - name: Align embedded framework MinimumOSVersion (ITMS-90208)
+        # onnxruntime.framework ships an Info.plist with MinimumOSVersion 15.1, but Xcode links its
+        # binary for the app's deployment target, so App Store Connect sees a binary whose minimum OS
+        # differs from its Info.plist and rejects it (ITMS-90208). Write the binary's real minimum OS
+        # into each embedded framework's Info.plist; exportArchive re-signs everything afterwards.
         run: |
-          APP_DIR="$RUNNER_TEMP/JarvisFit.xcarchive/Products/Applications/$APP_NAME.app"
-          FW_DIR="$APP_DIR/Frameworks"
+          FW_DIR="$RUNNER_TEMP/JarvisFit.xcarchive/Products/Applications/$APP_NAME.app/Frameworks"
           [ -d "$FW_DIR" ] || { echo "No Frameworks folder"; exit 0; }
           for fw in "$FW_DIR"/*.framework; do
             [ -d "$fw" ] || continue
-            name=$(basename "$fw" .framework)
-            exe=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$fw/Info.plist" 2>/dev/null || echo "$name")
-            echo "== $name: $(ls "$fw" | xargs)"
-            kind=$(file -b "$fw/$exe" 2>/dev/null || echo "missing")
-            echo "   binary: $kind"
-            if ! echo "$kind" | grep -q "dynamically linked shared library"; then
-              echo "   -> removing (not a dynamic library)"
-              rm -rf "$fw"
+            plist="$fw/Info.plist"
+            exe=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$plist" 2>/dev/null || basename "$fw" .framework)
+            minos=$(xcrun vtool -show-build "$fw/$exe" 2>/dev/null | awk '/minos/ {print $2; exit}')
+            current=$(/usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$plist" 2>/dev/null || echo "none")
+            echo "$(basename "$fw"): binary minos=$minos, Info.plist MinimumOSVersion=$current"
+            if [ -z "$minos" ]; then echo "::error::Cannot read minos of $(basename "$fw")"; exit 1; fi
+            if [ "$minos" != "$current" ]; then
+              /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion $minos" "$plist" 2>/dev/null                 || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string $minos" "$plist"
+              echo "  -> MinimumOSVersion set to $minos"
             fi
           done
-          rmdir "$FW_DIR" 2>/dev/null || true
-          ls -la "$FW_DIR" 2>/dev/null || echo "No embedded frameworks left"
-          # The ONNX Runtime code must be inside the app binary itself (static link).
-          if grep -a -q "onnxruntime/core" "$APP_DIR/$APP_NAME"; then
-            echo "ONNX Runtime is linked into $APP_NAME"
-          else
-            echo "::warning::ONNX Runtime code not found in the app binary (custom voices would fall back to Apple voices)"
-          fi
 
       - name: Export IPA and verify signature
         run: |
@@ -166,12 +158,15 @@ jobs:
             (cd ipa && zip -qry "../$APP_NAME.ipa" .)
           fi
           codesign --verify --deep --strict --verbose=2 "$APP"
-          # Guard: every embedded framework must be a dynamic library (see ITMS-90208 step).
+          # Guard (ITMS-90208): each embedded framework's Info.plist must match its binary's minimum OS.
           for fw in "$APP"/Frameworks/*.framework; do
             [ -d "$fw" ] || continue
             exe=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$fw/Info.plist" 2>/dev/null || basename "$fw" .framework)
-            if ! file -b "$fw/$exe" 2>/dev/null | grep -q "dynamically linked shared library"; then
-              echo "::error::Non-dynamic framework still embedded: $(basename "$fw") ($(file -b "$fw/$exe" 2>&1))"; exit 1
+            minos=$(xcrun vtool -show-build "$fw/$exe" 2>/dev/null | awk '/minos/ {print $2; exit}')
+            plistos=$(/usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$fw/Info.plist" 2>/dev/null)
+            echo "IPA $(basename "$fw"): minos=$minos MinimumOSVersion=$plistos"
+            if [ "$minos" != "$plistos" ]; then
+              echo "::error::$(basename "$fw") binary minos $minos != Info.plist $plistos"; exit 1
             fi
           done
           du -sh "$APP_NAME.ipa"
