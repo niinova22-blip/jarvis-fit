@@ -6,11 +6,13 @@
 #   bash train_voice.sh en jarvis_en_michael 1000 [BATCH]
 #   bash train_voice.sh tr jarvis_tr_george export     # export the latest checkpoint only
 #
-# Speed: 6 data workers (Piper's default of 1 starves the GPU), validation every 25 epochs without the CPU-side
-# UTMOS score, bf16 mixed precision.
+# Speed: 6 data workers (Piper's default of 1 starves the GPU), validation every 25 epochs, bf16 mixed precision.
+# Keep the UTMOS score on: Piper's checkpoint callback monitors `val_mos` and fails at the first validation without it
+# (it only runs every 25 epochs, so its cost is small).
 set -euo pipefail
 LANG_CODE=$1; NAME=$2; EPOCHS=$3; BATCH=${4:-16}; EXTRA=("${@:5}")
 ROOT=/root/voice
+TOOLS=$(dirname "$(readlink -f "$0")")
 RUN=$ROOT/runs/$NAME
 OUT=$ROOT/out
 mkdir -p "$RUN" "$OUT"
@@ -30,7 +32,6 @@ if [ "$EPOCHS" != "export" ]; then
     --data.num_test_examples 5 \
     --data.num_workers 6 \
     --model.sample_rate 22050 \
-    --model.mos_metric none \
     --model.warmstart_ckpt "$ROOT/base/en/en_US/ljspeech/medium/lj-med_1000.ckpt" \
     --trainer.max_epochs "$EPOCHS" \
     --trainer.check_val_every_n_epoch 25 \
@@ -42,5 +43,7 @@ fi
 
 CKPT=$(ls -t "$RUN"/lightning_logs/version_*/checkpoints/*.ckpt | head -1)
 echo "exporting $CKPT"
-python -m piper.train.export_onnx --checkpoint "$CKPT" --output-file "$OUT/$NAME.onnx"
+rm -f "$OUT/$NAME.onnx"
+python "$TOOLS/export_onnx.py" --checkpoint "$CKPT" --output-file "$OUT/$NAME.onnx"
+[ -s "$OUT/$NAME.onnx" ] || { echo "export failed: no $OUT/$NAME.onnx"; exit 3; }
 ls -la "$OUT"

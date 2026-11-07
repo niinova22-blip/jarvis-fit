@@ -14,6 +14,10 @@ stage() { echo "## $(date '+%F %T') $*" | tee -a "$LOG"; }
 train() {  # lang name; batch 32 first, 16 if the GPU runs out of memory
   local lang=$1 name=$2
   for batch in 32 16; do
+    if ls "$ROOT/runs/$name"/lightning_logs/version_*/checkpoints/*.ckpt > /dev/null 2>&1; then
+      stage "train $name: keeping the failed run's checkpoints, not retrying (export: bash train_voice.sh $lang $name export)"
+      return 1
+    fi
     stage "train $name epochs=$EPOCHS batch=$batch"
     rm -rf "$ROOT/runs/$name"
     if bash train_voice.sh "$lang" "$name" "$EPOCHS" "$batch" --data.num_workers 4 >> "$LOG.$name" 2>&1; then
@@ -33,12 +37,16 @@ evaluate() {  # lang name
 }
 
 stage "start"
-stage "TR data generation (resume)"
-"$ROOT/.venv-chatterbox/bin/python" generate_dataset.py tr "$ROOT/text/sentences_tr.txt" "$ROOT/data_tr" \
-  "$ROOT/samples/EN_bm_george.wav" > "$ROOT/gen_tr.log" 2>&1
-grep -E "^done" "$ROOT/gen_tr.log" | tee -a "$LOG"
-stage "TR filter"
-"$ROOT/.venv-chatterbox/bin/python" filter_dataset.py tr "$ROOT/data_tr" "$ROOT/text/cmudict.dict" 2>/dev/null | tail -1 | tee -a "$LOG"
+if [ -f "$ROOT/data_tr/metadata.csv" ]; then
+  stage "TR data already filtered ($(wc -l < "$ROOT/data_tr/metadata.csv") clips), skipping generation"
+else
+  stage "TR data generation (resume)"
+  "$ROOT/.venv-chatterbox/bin/python" generate_dataset.py tr "$ROOT/text/sentences_tr.txt" "$ROOT/data_tr" \
+    "$ROOT/samples/EN_bm_george.wav" > "$ROOT/gen_tr.log" 2>&1
+  grep -E "^done" "$ROOT/gen_tr.log" | tee -a "$LOG"
+  stage "TR filter"
+  "$ROOT/.venv-chatterbox/bin/python" filter_dataset.py tr "$ROOT/data_tr" "$ROOT/text/cmudict.dict" 2>/dev/null | tail -1 | tee -a "$LOG"
+fi
 
 train tr jarvis_tr_george && evaluate tr jarvis_tr_george
 train en jarvis_en_michael && evaluate en jarvis_en_michael
