@@ -4,6 +4,19 @@ import JarvisCore
 import FoundationModels
 #endif
 
+#if canImport(FoundationModels)
+/// Structured answer: the model states whether the message is within NOVA's scope (sport and
+/// nutrition) before answering, so off-topic questions get the fixed refusal instead of an answer.
+@available(iOS 26.0, *)
+@Generable
+struct NovaReply {
+    @Guide(description: "true if the user's message is about sport, exercise, training, fitness, a sport, recovery, sleep or injury prevention for training, motivation to train, nutrition, diet, food, recipes, supplements or body composition, or is a greeting/thanks. false for anything else (coding, politics, films, music, maths, trivia, news, relationships, money…).")
+    var onTopic: Bool
+    @Guide(description: "The reply to the user, in the user's language. Empty if onTopic is false.")
+    var answer: String
+}
+#endif
+
 /// Free-form conversation with an on-device language model.
 ///
 /// Uses Apple's on-device Foundation Model (iOS 26+, Apple Intelligence devices such as iPhone
@@ -53,7 +66,15 @@ final class LanguageModelService: ObservableObject {
         #endif
     }
 
-    func reply(to message: String, context: AssistantContext, maxSentences: Int = 3) async -> String {
+    enum Reply: Equatable {
+        case answer(String)
+        /// The model judged the message to be outside sport and nutrition.
+        case offTopic
+        /// No model on this device, or it failed (guardrail, context window…).
+        case unavailable
+    }
+
+    func reply(to message: String, context: AssistantContext, maxSentences: Int = 3) async -> Reply {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), isAvailable {
             let session: LanguageModelSession
@@ -64,19 +85,17 @@ final class LanguageModelService: ObservableObject {
                 sessionStorage = session
             }
             do {
-                let options = GenerationOptions(temperature: 0.6, maximumResponseTokens: maxSentences * 45)
-                let response = try await session.respond(to: message, options: options)
-                let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !text.isEmpty { return text }
+                let options = GenerationOptions(temperature: 0.6, maximumResponseTokens: maxSentences * 60 + 40)
+                let response = try await session.respond(to: message, generating: NovaReply.self, options: options)
+                guard response.content.onTopic else { return .offTopic }
+                let text = response.content.answer.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty { return .answer(text) }
             } catch {
                 // Context window exceeded or guardrail: start over next time.
                 sessionStorage = nil
-                return context.language == .turkish
-                    ? "Bunu şu an yanıtlayamıyorum. Başka bir şekilde sorabilir misin?"
-                    : "I can't answer that right now. Could you ask another way?"
             }
         }
         #endif
-        return PromptBuilder.fallbackReply(context.language).resolve(context.language)
+        return .unavailable
     }
 }

@@ -2,6 +2,26 @@
 
 _Son güncelleme: 2026-11-08_
 
+## 2026-11-08 (2) — Her açı/mesafeden algılama + konu sınırlı AI sohbet
+
+- **Uyarlanabilir tekrar sayacı** (`AdaptiveRepCounter`, `AdaptiveSignalSpec`): her hareket için bakış açısından
+  bağımsız sinyal (squat/lunge: kalça yüksekliği, şınav: omuz, curl/press/yana açış/jumping jack: bilek–omuz, bilek
+  kadraj dışındaysa dirsek), vücut ölçeğine göre eşik (uzaklıktan bağımsız), kullanıcının kendi genliğinden öğrenilen
+  eşik ve canlı gürültü tahmini (uzakta titreyen eklemler sahte tekrar üretmesin). Açı sayacı yine önde (daha iyi form
+  geri bildirimi); görmediği ya da 2 tekrar geride kaldığı durumda uyarlanabilir sayaç devralır. Açı sayacının
+  vücut hareketi olmayan "tekrar"ları elenir.
+- **Kadraj:** sabit mesafe/yükseklik/yan-ön şartı kaldırıldı; yalnızca hareketin ihtiyaç duyduğu eklemler aranır
+  (kol hareketleri yakın çekimde çalışır), kişi çok küçükse "yaklaş" der. "Hazır" bekleme 1,0 → 0,6 sn.
+- **Uzak mesafe:** kişi kadrajın ~%45'inden küçükse Vision kişinin etrafındaki bölgede (ROI) çalışır = dijital
+  yakınlaştırma. ROI koordinat dönüşümü çalışma anında önceki kareyle doğrulanır.
+- **Testler:** `AnyAngleTests` — 10 hareket × 6 yerleşim (uzak ~6 m, uzak+kenarda, yakın çekim/uzuvlar kadraj dışı,
+  ~65° çapraz, telefon yerde, uzak+çapraz+alçak) tam sayım; hareketsiz dururken 0; önden şınav; şınav pozisyonuna
+  iniş tekrar sayılmaz. ⚠️ Sentetik veri; gerçek kayıtlarla eşikler ayarlanmalı.
+- **AI sohbet:** `TopicGuard` (spor/beslenme dışını modele sormadan reddeder, selam/teşekkürü reddetmez), model
+  talimatları "spor ve beslenmenin her konusu" + standart red cümlesi, Apple modeli yapılandırılmış çıktı
+  (`onTopic` + cevap) döndürür. Modeli olmayan cihazlarda `FitnessKnowledge` (31 konu, kişiye göre) cevap verir.
+  Red cümlesi: "Ben yalnızca spor ve beslenme konusunda yardımcı olabilirim…". ❌ Model davranışı cihazda denenmeli.
+
 ## 2026-11-08 — Yeniden markalama + App Store reddi düzeltmesi
 
 - **ITMS-90208 (1.0 build 106 ve 108 reddedildi):** `onnxruntime.framework`'ün Info.plist'i

@@ -66,6 +66,22 @@ public enum TrackedExercise: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    /// Minimum joints for counting from any angle: each group needs at least one visible joint.
+    public var coreJoints: [[Joint]] {
+        let shoulders: [Joint] = [.leftShoulder, .rightShoulder]
+        let hips: [Joint] = [.leftHip, .rightHip]
+        let knees: [Joint] = [.leftKnee, .rightKnee]
+        let arms: [Joint] = [.leftElbow, .rightElbow, .leftWrist, .rightWrist]
+        switch self {
+        case .squat, .lunge: return [shoulders, hips, knees]
+        case .pushUp: return [shoulders, arms]
+        case .plank: return [shoulders, hips, [.leftKnee, .rightKnee, .leftAnkle, .rightAnkle]]
+        case .gluteBridge, .crunch: return [shoulders, hips]
+        case .jumpingJack: return [shoulders, arms]
+        case .bicepsCurl, .shoulderPress, .lateralRaise: return [shoulders, arms]
+        }
+    }
+
     /// In side view only one body side needs to be visible.
     public var minimumVisibleFraction: Double {
         preferredView == .side ? 0.5 : 0.75
@@ -99,14 +115,21 @@ public enum TrackedExercise: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    /// Where to put the phone. Any distance, height and angle works; this only says what must be in view.
     public var setupInstruction: LocalizedText {
-        switch preferredView {
-        case .side:
-            return LocalizedText(tr: "Telefonu yere, yan tarafına yaklaşık iki buçuk metre uzağa koy. Tüm vücudun görünsün.",
-                                 en: "Place the phone on the floor about two and a half meters to your side so your whole body is visible.")
-        default:
-            return LocalizedText(tr: "Telefonu bel hizasında, karşına yaklaşık iki metre uzağa koy. Baştan ayağa görünmelisin.",
-                                 en: "Place the phone at waist height about two meters in front of you. You should be visible head to toe.")
+        switch self {
+        case .bicepsCurl, .shoulderPress, .lateralRaise:
+            return LocalizedText(tr: "Telefonu istediğin yere koy; yakın da olur uzak da. Omuzların ve kolların görünsün yeter.",
+                                 en: "Put the phone anywhere, close or far. I just need to see your shoulders and arms.")
+        case .pushUp, .plank, .gluteBridge, .crunch:
+            return LocalizedText(tr: "Telefonu yere ya da alçak bir yere koy, istediğin açıdan. Omuzların ve kalçan görünsün; yandan ya da çapraz açı form takibini iyileştirir.",
+                                 en: "Put the phone on the floor or somewhere low, at any angle. Keep your shoulders and hips in view; a side or diagonal angle improves form tracking.")
+        case .jumpingJack:
+            return LocalizedText(tr: "Telefonu istediğin yere koy. Omuzların ve kolların görünsün; kolların yukarıda kadraj dışına çıksa da sayarım.",
+                                 en: "Put the phone anywhere. Keep your shoulders and arms in view; I keep counting even if your hands leave the frame overhead.")
+        case .squat, .lunge:
+            return LocalizedText(tr: "Telefonu istediğin mesafe ve yüksekliğe koy. Omuzdan dizlere kadar görünmen yeter; yandan ya da çapraz açı form takibini iyileştirir.",
+                                 en: "Put the phone at any distance and height. Shoulders to knees in view is enough; a side or diagonal angle improves form tracking.")
         }
     }
 }

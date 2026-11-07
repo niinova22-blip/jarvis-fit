@@ -170,7 +170,7 @@ public struct WorkoutSessionEngine {
     /// Seconds without a new rep (after at least one) that end a set automatically.
     public var inactivityTimeout: TimeInterval = 10
     /// Seconds the framing must stay "ready" before the countdown starts.
-    public var readyHold: TimeInterval = 1.0
+    public var readyHold: TimeInterval = 0.6
     public var minimumFormCueInterval: TimeInterval = 5
 
     public init(plan: LiveWorkoutPlan) {

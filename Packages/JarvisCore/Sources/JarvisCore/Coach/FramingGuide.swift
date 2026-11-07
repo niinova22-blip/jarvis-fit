@@ -31,54 +31,36 @@ public enum FramingStatus: Equatable, Sendable {
     }
 }
 
-/// Checks whether the user is fully and suitably framed for an exercise.
+/// Checks whether the camera sees enough of the user to count the exercise.
+///
+/// There is no required distance, phone height or camera angle: counting falls back to
+/// view-independent signals (`AdaptiveSignalSpec`), so the guide only asks for the joints the
+/// exercise really needs (`TrackedExercise.coreJoints`) and for the person not to be tiny.
+/// Upper-body exercises work in a close-up; legs only need to be visible for leg exercises.
 public struct FramingGuide: Sendable {
-    public var edgeMargin = 0.03
+    /// Below this body height (fraction of the image) the person is too far to track reliably.
+    public var minimumExtent = 0.12
 
     public init() {}
 
     public func evaluate(_ frame: PoseFrame, for exercise: TrackedExercise) -> (status: FramingStatus, view: CameraView) {
         let visible = Joint.allCases.compactMap { joint -> Point2? in frame.imagePoint(joint) }
-        guard visible.count >= 6 else { return (.noPerson, .unknown) }
-
+        guard visible.count >= 4 else { return (.noPerson, .unknown) }
         let features = PoseFeatures(frame)
-        let required = exercise.requiredJoints
-        let visibleRequired = required.filter { frame.isVisible($0) }.count
-        let fraction = Double(visibleRequired) / Double(required.count)
 
-        let minX = visible.map(\.x).min() ?? 0, maxX = visible.map(\.x).max() ?? 1
-        let minY = visible.map(\.y).min() ?? 0, maxY = visible.map(\.y).max() ?? 1
-        let width = maxX - minX, height = maxY - minY
-        let extent = exercise.expectedOrientation == .horizontal ? max(width, height) : height
-
-        if minY < edgeMargin && maxY > 1 - edgeMargin { return (.stepBack, features.view) }
-        // Side-view exercises need every required joint of at least one body side.
-        func sideComplete(_ side: Side) -> Bool {
-            required.filter { $0.rawValue.hasPrefix(side.rawValue) }.allSatisfy { frame.isVisible($0) }
-        }
-        let missing = fraction < exercise.minimumVisibleFraction
-            || (exercise.preferredView == .side && !sideComplete(.left) && !sideComplete(.right))
-        if missing {
-            let needsFeet = required.contains(.leftAnkle) || required.contains(.leftKnee)
-            if needsFeet && !frame.isVisible(.leftAnkle) && !frame.isVisible(.rightAnkle) && !frame.isVisible(.leftKnee) {
-                return (.showFeet, features.view)
+        let missing = exercise.coreJoints.filter { group in !group.contains { frame.isVisible($0) } }
+        if let group = missing.first {
+            let lowerBody: Set<Joint> = [.leftHip, .rightHip, .leftKnee, .rightKnee, .leftAnkle, .rightAnkle]
+            if group.allSatisfy({ lowerBody.contains($0) }) { return (.showFeet, features.view) }
+            if !frame.isVisible(.nose) && !frame.isVisible(.neck) && !frame.isVisible(.leftShoulder) && !frame.isVisible(.rightShoulder) {
+                return (.showHead, features.view)
             }
-            if !frame.isVisible(.nose) && !frame.isVisible(.neck) { return (.showHead, features.view) }
             return (.stepBack, features.view)
         }
-        if extent > 0.97 { return (.stepBack, features.view) }
-        if extent < 0.3 { return (.stepCloser, features.view) }
-        // Camera image is mirrored for the user: x < margin means the user should move to their left.
-        if minX < edgeMargin { return (.moveLeft, features.view) }
-        if maxX > 1 - edgeMargin { return (.moveRight, features.view) }
 
-        let view = features.view
-        if !exercise.acceptsAnyView && view != .unknown && view != exercise.preferredView {
-            return (exercise.preferredView == .side ? .turnSideways : .faceCamera, view)
-        }
-        if exercise.expectedOrientation != .unknown && features.orientation != exercise.expectedOrientation {
-            return (.getIntoPosition, view)
-        }
-        return (.ready, view)
+        let minY = visible.map(\.y).min() ?? 0, maxY = visible.map(\.y).max() ?? 1
+        let minX = visible.map(\.x).min() ?? 0, maxX = visible.map(\.x).max() ?? 1
+        if max(maxY - minY, maxX - minX) < minimumExtent { return (.stepCloser, features.view) }
+        return (.ready, features.view)
     }
 }

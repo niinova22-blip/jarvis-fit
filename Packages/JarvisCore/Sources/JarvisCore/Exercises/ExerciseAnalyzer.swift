@@ -53,42 +53,120 @@ public struct RepExerciseSpec {
 }
 
 /// Counts repetitions and checks form for all non-timed exercises.
+///
+/// Two counters run side by side:
+/// - the *primary* counter on the exercise's joint-angle signal with fixed thresholds (best form
+///   feedback, but tuned for one camera view), and
+/// - an *adaptive* counter on a view/distance-independent signal (`AdaptiveSignalSpec`).
+/// The analyser reports the primary count while it is tracking. It switches to the adaptive counter
+/// for the rest of the set when the primary signal could not see a rep the adaptive one counted
+/// (unusual angle, close-up with feet out of frame, phone on the floor…) or falls 2 reps behind.
 public struct RepExerciseAnalyzer: ExerciseAnalyzing {
+    public enum Mode: Sendable { case primary, adaptive }
+
     public let spec: RepExerciseSpec
     public let view: CameraView
+    public private(set) var mode: Mode = .primary
     private var counter: RepCounter
+    private var adaptive: AdaptiveRepCounter?
+    private let adaptiveSpec: AdaptiveSignalSpec?
+    private var scale = BodyScale()
     private var issueFrames: [FormIssue: Int] = [:]
     private var repFrames = 0
+    private var primaryPartials = 0
+    private var reported: [RepRecord] = []
+    /// Frames with an adaptive signal in the current adaptive rep, and how many of them the primary signal also saw.
+    private var adaptiveRepFrames = 0
+    private var adaptiveRepPrimaryFrames = 0
+    /// Range of the adaptive signal during the current primary rep (to veto jitter "reps").
+    private var primaryRepLow = Double.infinity
+    private var primaryRepHigh = -Double.infinity
+    private var lastScale: Double?
 
     public init(spec: RepExerciseSpec, view: CameraView) {
         self.spec = spec
         self.view = view
         self.counter = RepCounter(config: spec.config)
+        self.adaptiveSpec = AdaptiveSignalSpec.spec(for: spec.exercise)
+        if let a = adaptiveSpec { adaptive = AdaptiveRepCounter(direction: a.direction, minAmplitude: a.minAmplitude) }
     }
 
     public var exercise: TrackedExercise { spec.exercise }
-    public var repCount: Int { counter.count }
-    public var records: [RepRecord] { counter.records }
+    public var repCount: Int { reported.count }
+    public var records: [RepRecord] { reported }
 
     public mutating func process(_ frame: PoseFrame) -> AnalyzerUpdate {
         let features = PoseFeatures(frame)
         let signal = spec.signal(features)
-        let phaseBefore = counter.phase
-        let counterEvents = counter.update(signal: signal, at: frame.timestamp)
+        let bodyScale = scale.update(features, at: frame.timestamp)
+        let adaptiveSignal = adaptiveSpec?.extract(features)
 
-        if counter.phase == .away || counter.phase == .turn || counter.phase == .returning {
+        let phaseBefore = activePhase
+        let primaryPhaseBefore = counter.phase
+        var primaryEvents = counter.update(signal: signal, at: frame.timestamp)
+        lastScale = bodyScale ?? lastScale
+        if primaryPhaseBefore == .start || primaryPhaseBefore == .unknown {
+            primaryRepLow = .infinity
+            primaryRepHigh = -.infinity
+        }
+        if let v = adaptiveSignal {
+            primaryRepLow = min(primaryRepLow, v)
+            primaryRepHigh = max(primaryRepHigh, v)
+        }
+        // A primary rep without body travel is joint jitter seen at an unfavourable angle.
+        if let adaptiveSpec, let scale = lastScale, primaryRepHigh >= primaryRepLow {
+            let travel = primaryRepHigh - primaryRepLow
+            primaryEvents.removeAll { event in
+                guard case .repCompleted = event else { return false }
+                return travel < 0.35 * adaptiveSpec.minAmplitude * scale
+            }
+        }
+        var adaptiveEvents: [RepCounterEvent] = []
+        if var a = adaptive {
+            let before = a.phase
+            adaptiveEvents = a.update(signal: adaptiveSignal, scale: bodyScale, at: frame.timestamp)
+            if before == .start || before == .unknown, a.phase == .away {
+                adaptiveRepFrames = 0
+                adaptiveRepPrimaryFrames = 0
+            }
+            if adaptiveSignal != nil && a.phase != .start && a.phase != .unknown {
+                adaptiveRepFrames += 1
+                if signal != nil { adaptiveRepPrimaryFrames += 1 }
+            }
+            adaptive = a
+        }
+        for case .partialRep in primaryEvents { primaryPartials += 1 }
+
+        // Decide whether the adaptive counter should take over.
+        var catchUp: [RepRecord] = []
+        if mode == .primary, let a = adaptive, a.count > 0, adaptiveEvents.contains(where: { if case .repCompleted = $0 { return true }; return false }) {
+            let primaryBlind = adaptiveRepFrames > 0 && Double(adaptiveRepPrimaryFrames) / Double(adaptiveRepFrames) < 0.5
+            // Primary partials are trusted (real shallow reps) unless the body clearly travelled a
+            // full repetition — then the angle signal is foreshortened by the camera angle.
+            let recent = a.excursions.suffix(2)
+            let fullTravel = !recent.isEmpty && recent.allSatisfy { $0 >= (adaptiveSpec?.fullAmplitude ?? .infinity) }
+            let ahead = a.count >= counter.count + 2 && (primaryPartials == 0 || fullTravel)
+            if ahead || (primaryBlind && a.count > counter.count) {
+                mode = .adaptive
+                catchUp = Array(a.records.dropFirst(reported.count).dropLast())
+            }
+        }
+
+        let phase = activePhase
+        if phase == .away || phase == .turn || phase == .returning {
             if phaseBefore == .start || phaseBefore == .unknown {
                 issueFrames.removeAll()
                 repFrames = 0
             }
             repFrames += 1
-            for issue in spec.frameChecks(features, counter.phase) where issue.requiredView == nil || issue.requiredView == view {
+            for issue in spec.frameChecks(features, phase) where issue.requiredView == nil || issue.requiredView == view {
                 issueFrames[issue, default: 0] += 1
             }
         }
 
         var events: [ExerciseEvent] = []
-        for event in counterEvents {
+        for record in catchUp { events.append(.repCompleted(report(record, issues: []))) }
+        for event in mode == .primary ? primaryEvents : adaptiveEvents {
             switch event {
             case .repCompleted(let record):
                 var issues: [FormIssue] = []
@@ -98,10 +176,10 @@ public struct RepExerciseAnalyzer: ExerciseAnalyzing {
                         issues.append(issue)
                     }
                 }
-                if let issue = spec.extremeCheck(record.extremeValue) { issues.append(issue) }
+                // Angle-based depth checks only make sense on the primary (angle) signal.
+                if mode == .primary, let issue = spec.extremeCheck(record.extremeValue) { issues.append(issue) }
                 if record.duration < spec.config.controlledRepDuration { issues.append(.tooFast) }
-                counter.annotateLastRecord(with: issues)
-                events.append(.repCompleted(counter.records.last ?? record))
+                events.append(.repCompleted(report(record, issues: issues)))
                 issueFrames.removeAll()
                 repFrames = 0
             case .partialRep:
@@ -111,9 +189,27 @@ public struct RepExerciseAnalyzer: ExerciseAnalyzing {
             }
         }
 
-        let progress = signal.map { max(0, min(1, counter.progress(of: $0))) } ?? 0
-        return AnalyzerUpdate(repCount: counter.count, holdSeconds: 0, phase: counter.phase,
-                              progress: progress, signal: signal, events: events)
+        let progress: Double
+        if mode == .adaptive, let a = adaptive {
+            progress = adaptiveSignal.map { a.progress(of: $0) } ?? 0
+        } else {
+            progress = signal.map { max(0, min(1, counter.progress(of: $0))) } ?? (adaptiveSignal.flatMap { v in adaptive.map { $0.progress(of: v) } } ?? 0)
+        }
+        return AnalyzerUpdate(repCount: reported.count, holdSeconds: 0, phase: phase,
+                              progress: progress, signal: mode == .primary ? signal : adaptiveSignal, events: events)
+    }
+
+    private var activePhase: RepPhase {
+        mode == .adaptive ? (adaptive?.phase ?? .unknown) : counter.phase
+    }
+
+    /// Re-indexes a record from either counter into the reported sequence.
+    private mutating func report(_ record: RepRecord, issues: [FormIssue]) -> RepRecord {
+        var r = record
+        r.index = reported.count + 1
+        r.formIssues = issues
+        reported.append(r)
+        return r
     }
 }
 

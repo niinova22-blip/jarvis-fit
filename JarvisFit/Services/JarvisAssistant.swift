@@ -52,11 +52,29 @@ final class JarvisAssistant: ObservableObject {
             guard !clean.trimmingCharacters(in: .whitespaces).isEmpty else {
                 return .reply(model.t("Buradayım.", "I'm here."))
             }
+            // NOVA talks about sport and nutrition only; clear cases are decided without the model.
+            let scope = TopicGuard.classify(clean)
+            switch scope {
+            case .offTopic: return .reply(TopicGuard.refusal.resolve(context.language))
+            case .smallTalk: return .reply(TopicGuard.smallTalkReply(clean).resolve(context.language))
+            case .sportOrNutrition, .unclear: break
+            }
             guard model.isPremium || model.data.chat.filter({ $0.role == .user && $0.date.dayKey == Date().dayKey }).count < 10 else {
                 return .reply(model.t("Ücretsiz sürümde günlük sohbet sınırına ulaştın. Premium ile sınırsız konuşabiliriz.",
                                       "You've reached today's free chat limit. Premium unlocks unlimited conversation."))
             }
-            return .reply(await llm.reply(to: text, context: context, maxSentences: session == nil ? 4 : 2))
+            switch await llm.reply(to: clean, context: context, maxSentences: session == nil ? 6 : 2) {
+            case .answer(let text):
+                return .reply(text)
+            case .offTopic:
+                return .reply(TopicGuard.refusal.resolve(context.language))
+            case .unavailable:
+                // No on-device model: built-in sport and nutrition knowledge, personalised.
+                if let known = FitnessKnowledge.answer(clean, context: context) {
+                    return .reply(known.resolve(context.language))
+                }
+                return .reply(PromptBuilder.fallbackReply(context.language).resolve(context.language))
+            }
         }
     }
 

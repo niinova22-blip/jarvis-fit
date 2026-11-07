@@ -58,3 +58,13 @@ Hafif mod (Ayarlar › Performans; ≤4 GB RAM, Düşük Güç Modu, ısınma ve
 - Yemek fotoğrafı: 50 farklı tabakta ilk 3 adayda doğru yemek oranı.
 - Fit Check: 5 kişide mezura ile karşılaştırma (bel, kalça, göğüs); hata bandının doğrulanması.
 - StoreKit: sandbox/TestFlight satın alma, geri yükleme, iptal, çevrimdışı premium.
+
+## Her açı / mesafe ve AI sohbet (2026-11-08)
+- Her hareketi şu yerleşimlerde 10'ar tekrar yap, sayılanı not et: telefon yerde önde, masada çapraz (~45°),
+  1 m yakın (kol hareketleri), 5–6 m uzak, yandan. Pose kaydını aç (Ayarlar › geliştirici) ve kayıtları sakla.
+- Hareketsiz 30 sn dur ve şınav pozisyonuna inip kalk: sahte tekrar olmamalı.
+- Uzakta (5–6 m) ROI yakınlaştırmanın çalıştığını iskelet çiziminin kişiye oturmasıyla kontrol et.
+- Sohbet: spor/beslenme soruları (ör. "kreatin", "göbek yağı", "maç öncesi ne yemeli") cevaplanmalı; "film öner",
+  "Python", "hava durumu" sorularına sabit red cümlesi gelmeli; "merhaba/teşekkürler" reddedilmemeli. Apple
+  Intelligence kapalı bir cihazda yerleşik cevapları dene.
+

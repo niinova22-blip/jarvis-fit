@@ -178,6 +178,12 @@ public enum PromptBuilder {
             : "You are NOVA, a personal fitness mentor running on the user's device. Always answer in English, short and natural (max 3 sentences).")
         lines.append(personalityLine(p.personality, tr: tr))
         lines.append(tr
+            ? "Konu: Spor ve beslenmeyle ilgili HER şeyi konuşabilirsin: antrenman, egzersiz tekniği, programlar, kardiyo, kuvvet, esneklik, spor dalları, toparlanma, uyku, sakatlıktan korunma, motivasyon, beslenme, diyetler, makrolar, kalori, yiyecekler, tarifler, takviyeler ve vücut kompozisyonu. Kullanıcının bilgilerini kullanarak kişisel ve somut cevap ver."
+            : "Scope: You can discuss EVERYTHING about sport and nutrition: training, exercise technique, programmes, cardio, strength, flexibility, sports, recovery, sleep, injury prevention, motivation, nutrition, diets, macros, calories, foods, recipes, supplements and body composition. Use the user's facts to give personal, concrete answers.")
+        lines.append(tr
+            ? "Bu konuların dışındaki her soruya (ör. kodlama, siyaset, film, matematik, genel kültür) cevap verme; yalnızca şunu söyle: \"\(TopicGuard.refusal.tr)\""
+            : "For any question outside these topics (e.g. coding, politics, films, maths, trivia) do not answer; reply only: \"\(TopicGuard.refusal.en)\"")
+        lines.append(tr
             ? "Kurallar: Tıbbi teşhis koyma, ilaç veya tedavi önerme. Ağrı, baş dönmesi, göğüs ağrısı gibi belirtilerde antrenmanı bırakmasını ve bir sağlık profesyoneline başvurmasını söyle. Bilmediğin bir şeyi uydurma. Kalori ve ölçüm değerlerini kesin değil tahmini olarak belirt."
             : "Rules: Never diagnose or recommend medication or treatment. For pain, dizziness, chest pain or similar symptoms tell the user to stop and contact a health professional. Don't make things up. Present calories and measurements as estimates.")
         lines.append(tr ? "Kullanıcı bilgileri:" : "User facts:")
@@ -214,9 +220,9 @@ public enum PromptBuilder {
         }
     }
 
-    /// Reply used when no on-device model is available.
+    /// Reply used when no on-device model is available and no built-in topic matched.
     public static func fallbackReply(_ language: AppLanguage) -> LocalizedText {
-        LocalizedText(tr: "Bu cihazda serbest sohbet modeli şu an kullanılamıyor. Antrenman, beslenme ve programınla ilgili komutları yine de anlayabilirim; örneğin 'yarın ne çalışacağız' diyebilirsin.",
-                      en: "The free-chat model isn't available on this device right now. I can still handle workout, nutrition and plan commands — try 'what are we training tomorrow'.")
+        LocalizedText(tr: "Bu soruyu bu cihazda tam yanıtlayamıyorum. Protein, kalori, yağ yakımı, kas kazanımı, kreatin, ısınma, kas ağrısı, uyku ya da programın hakkında sorabilirsin; örneğin 'günde ne kadar protein almalıyım'.",
+                      en: "I can't fully answer that on this device. Ask me about protein, calories, fat loss, building muscle, creatine, warm-ups, soreness, sleep or your plan — e.g. 'how much protein should I eat'.")
     }
 }

@@ -55,8 +55,8 @@ struct ChatView: View {
                     .background(Capsule().fill(Theme.surface))
             }
             if !assistant.llm.isAvailable {
-                Text(model.t("Serbest sohbet için cihaz üstü Apple dil modeli gerekir (iOS 26 ve Apple Intelligence açık). Komutlar ve sorular yine de çalışır.",
-                             "Free conversation needs Apple's on-device language model (iOS 26 with Apple Intelligence on). Commands and questions still work."))
+                Text(model.t("Bu cihazda Apple'ın cihaz üstü dil modeli yok (iOS 26 ve Apple Intelligence gerekir). Yaygın spor ve beslenme sorularını yerleşik bilgiyle yanıtlıyorum; komutlar da çalışır.",
+                             "Apple's on-device language model isn't available here (needs iOS 26 with Apple Intelligence). I answer common sport and nutrition questions from built-in knowledge, and commands still work."))
                     .font(Theme.caption).foregroundStyle(Theme.warning)
             }
         }
@@ -64,8 +64,8 @@ struct ChatView: View {
 
     private var suggestions: [String] {
         model.language == .turkish
-            ? ["Yarın hangi kas grubunu çalışacağız?", "Bugün kaç kalori aldım?", "Kahvaltıda iki yumurta ve bir dilim ekmek yedim", "Protein hedefim ne?"]
-            : ["What are we training tomorrow?", "How many calories have I had today?", "For breakfast I had two eggs and a slice of bread", "What's my protein target?"]
+            ? ["Yarın hangi kas grubunu çalışacağız?", "Günde ne kadar protein almalıyım?", "Kahvaltıda iki yumurta ve bir dilim ekmek yedim", "Antrenmandan önce ne yemeliyim?", "Kreatin kullanmalı mıyım?"]
+            : ["What are we training tomorrow?", "How much protein should I eat?", "For breakfast I had two eggs and a slice of bread", "What should I eat before training?", "Should I take creatine?"]
     }
 
     private func bubble(_ message: ChatMessage) -> some View {

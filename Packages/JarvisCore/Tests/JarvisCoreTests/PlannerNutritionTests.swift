@@ -263,8 +263,15 @@ final class RecognizerTests: XCTestCase {
         let standing = PoseFrame(timestamp: 0, keypoints: SyntheticPose.squat(0, view: .side), aspectRatio: 1)
         XCTAssertEqual(guide.evaluate(standing, for: .squat).status, .ready)
         XCTAssertEqual(guide.evaluate(PoseFrame(timestamp: 0, keypoints: [:]), for: .squat).status, .noPerson)
-        // Push-up expected but user is standing.
-        XCTAssertEqual(guide.evaluate(standing, for: .pushUp).status, .getIntoPosition)
+        // No fixed placement: standing in view is enough to start (the user gets down afterwards).
+        XCTAssertEqual(guide.evaluate(standing, for: .pushUp).status, .ready)
+        // Close-up for an arm exercise: only the upper body is visible.
+        var upper = SyntheticPose.curl(0)
+        for joint: Joint in [.leftHip, .rightHip, .leftKnee, .rightKnee, .leftAnkle, .rightAnkle] { upper[joint] = nil }
+        XCTAssertEqual(guide.evaluate(PoseFrame(timestamp: 0, keypoints: upper, aspectRatio: 1), for: .bicepsCurl).status, .ready)
+        // Very far away: tiny in the image.
+        let tiny = AnyAngleTests.place(SyntheticPose.squat(0, view: .front), AnyAngleTests.Placement(name: "tiny", scale: 0.1))
+        XCTAssertEqual(guide.evaluate(PoseFrame(timestamp: 0, keypoints: tiny, aspectRatio: 1), for: .squat).status, .stepCloser)
         // Feet cut off.
         var noFeet = SyntheticPose.squat(0, view: .front)
         for joint: Joint in [.leftAnkle, .rightAnkle, .leftKnee, .rightKnee] { noFeet[joint] = nil }

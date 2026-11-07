@@ -13,13 +13,17 @@ enum VisionPoseAdapter {
         .leftKnee: .leftKnee, .rightKnee: .rightKnee, .leftAnkle: .leftAnkle, .rightAnkle: .rightAnkle
     ]
 
-    /// Vision uses a bottom-left origin; JarvisCore uses top-left.
-    static func frame(from observation: VNHumanBodyPoseObservation, timestamp: TimeInterval, imageSize: CGSize) -> PoseFrame {
+    /// Vision uses a bottom-left origin; JarvisCore uses top-left. `roi` maps points found inside a
+    /// zoomed region of interest back to full-image coordinates.
+    static func frame(from observation: VNHumanBodyPoseObservation, timestamp: TimeInterval, imageSize: CGSize,
+                      roi: CGRect? = nil) -> PoseFrame {
         var keypoints: [JarvisCore.Joint: Keypoint] = [:]
         if let points = try? observation.recognizedPoints(.all) {
             for (name, point) in points {
                 guard let joint = jointMap[name] else { continue }
-                keypoints[joint] = Keypoint(Point2(Double(point.location.x), 1 - Double(point.location.y)), confidence: Double(point.confidence))
+                var location = point.location
+                if let roi { location = CGPoint(x: roi.minX + location.x * roi.width, y: roi.minY + location.y * roi.height) }
+                keypoints[joint] = Keypoint(Point2(Double(location.x), 1 - Double(location.y)), confidence: Double(point.confidence))
             }
         }
         let aspect = imageSize.height > 0 ? Double(imageSize.width / imageSize.height) : 9.0 / 16.0
@@ -29,6 +33,14 @@ enum VisionPoseAdapter {
     /// Picks the largest detected person (closest to the camera).
     static func mainObservation(_ observations: [VNHumanBodyPoseObservation]) -> VNHumanBodyPoseObservation? {
         observations.max { area($0) < area($1) }
+    }
+
+    /// Bounding box of the confident joints (Vision coordinates, bottom-left origin).
+    static func bounds(_ observation: VNHumanBodyPoseObservation) -> CGRect? {
+        guard let points = try? observation.recognizedPoints(.all).values.filter({ $0.confidence > 0.3 }), points.count >= 4 else { return nil }
+        let xs = points.map(\.location.x), ys = points.map(\.location.y)
+        guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else { return nil }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     private static func area(_ observation: VNHumanBodyPoseObservation) -> CGFloat {
@@ -66,6 +78,14 @@ final class CameraPoseService: NSObject, ObservableObject, AVCaptureVideoDataOut
     private var preference: PerformancePreference = .automatic
     private var analyseEvery = 1
     private var measuredFPS: Double?
+    /// Zoomed region of interest while the user is far away (small in the image); nil = full frame.
+    private var roi: CGRect?
+    /// Last person bounds in full-image Vision coordinates.
+    private var lastBounds: CGRect?
+    /// Whether Vision reports ROI results relative to the ROI (documented behaviour); verified at
+    /// runtime against the previous frame before it is trusted, see `resolveROIMapping`.
+    private var roiRelative: Bool?
+    private var roiVotes = 0
 
     override init() {
         super.init()
@@ -187,6 +207,33 @@ final class CameraPoseService: NSObject, ObservableObject, AVCaptureVideoDataOut
         updateBudget()
     }
 
+    /// Region (same aspect as the image) around a person who fills less than ~45% of the image (far away), so
+    /// Vision analyses them at a higher effective resolution. nil when the person is close enough.
+    static func zoomRegion(for bounds: CGRect) -> CGRect? {
+        let size = max(bounds.width, bounds.height) * 1.7
+        guard size < 0.75 else { return nil }
+        let k = max(size, 0.35)
+        let x = min(max(bounds.midX - k / 2, 0), 1 - k)
+        let y = min(max(bounds.midY - k / 2, 0), 1 - k)
+        return CGRect(x: x, y: y, width: k, height: k)
+    }
+
+    /// Decides once (by 3 agreeing frames) whether ROI results are relative to the ROI, by comparing
+    /// both interpretations with the person's previous full-frame bounds. Returns the ROI to map with,
+    /// or nil to use the points as they are.
+    private func resolveROIMapping(_ observation: VNHumanBodyPoseObservation, roi: CGRect) -> CGRect? {
+        if let relative = roiRelative, roiVotes >= 3 { return relative ? roi : nil }
+        guard let raw = VisionPoseAdapter.bounds(observation), let previous = lastBounds else { return roi }
+        let mapped = CGRect(x: roi.minX + raw.minX * roi.width, y: roi.minY + raw.minY * roi.height,
+                            width: raw.width * roi.width, height: raw.height * roi.height)
+        func distance(_ a: CGRect, _ b: CGRect) -> CGFloat {
+            hypot(a.midX - b.midX, a.midY - b.midY) + abs(a.height - b.height) + abs(a.width - b.width)
+        }
+        let relative = distance(mapped, previous) <= distance(raw, previous)
+        if relative == roiRelative { roiVotes += 1 } else { roiRelative = relative; roiVotes = 1 }
+        return relative ? roi : nil
+    }
+
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         frameIndex &+= 1
         if analyseEvery > 1 && frameIndex % analyseEvery != 0 { return }
@@ -196,16 +243,31 @@ final class CameraPoseService: NSObject, ObservableObject, AVCaptureVideoDataOut
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         let size = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .up, options: [:])
+        let usedROI = roi
+        poseRequest.regionOfInterest = usedROI ?? CGRect(x: 0, y: 0, width: 1, height: 1)
         do {
             try handler.perform([poseRequest])
         } catch {
+            roi = nil
             return
         }
         let observations = poseRequest.results ?? []
         let frame: PoseFrame
         if let main = VisionPoseAdapter.mainObservation(observations) {
-            frame = VisionPoseAdapter.frame(from: main, timestamp: timestamp, imageSize: size)
+            let mapping = usedROI.flatMap { resolveROIMapping(main, roi: $0) }
+            frame = VisionPoseAdapter.frame(from: main, timestamp: timestamp, imageSize: size, roi: mapping)
+            if let raw = VisionPoseAdapter.bounds(main) {
+                let full = mapping.map { m in CGRect(x: m.minX + raw.minX * m.width, y: m.minY + raw.minY * m.height,
+                                                    width: raw.width * m.width, height: raw.height * m.height) } ?? raw
+                lastBounds = full
+                roi = Self.zoomRegion(for: full)
+            } else {
+                roi = nil
+            }
         } else {
+            // Lost the person inside the zoomed region: search the full frame again.
+            roi = nil
+            lastBounds = nil
             frame = PoseFrame(timestamp: timestamp, keypoints: [:], aspectRatio: Double(size.width / max(size.height, 1)))
         }
         frameCount += 1
