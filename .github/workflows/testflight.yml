@@ -100,20 +100,32 @@ jobs:
       - name: Remove embedded static frameworks (ITMS-90208)
         # onnxruntime's SPM xcframework is a *static* library wrapped in a .framework. It is already
         # linked into the app binary, but Xcode also copies it into Frameworks/, and App Store
-        # Connect rejects a framework without a dynamic binary (ITMS-90208). exportArchive re-signs.
+        # Connect rejects a framework without a dynamic binary (ITMS-90208). Every embedded framework
+        # whose binary is missing or not a dynamic library is removed; exportArchive re-signs.
         run: |
-          FW_DIR="$RUNNER_TEMP/JarvisFit.xcarchive/Products/Applications/$APP_NAME.app/Frameworks"
-          [ -d "$FW_DIR" ] || exit 0
+          APP_DIR="$RUNNER_TEMP/JarvisFit.xcarchive/Products/Applications/$APP_NAME.app"
+          FW_DIR="$APP_DIR/Frameworks"
+          [ -d "$FW_DIR" ] || { echo "No Frameworks folder"; exit 0; }
           for fw in "$FW_DIR"/*.framework; do
             [ -d "$fw" ] || continue
-            bin="$fw/$(basename "$fw" .framework)"
-            if file "$bin" | grep -q "ar archive"; then
-              echo "Removing static framework $(basename "$fw") ($(du -sh "$fw" | cut -f1))"
+            name=$(basename "$fw" .framework)
+            exe=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$fw/Info.plist" 2>/dev/null || echo "$name")
+            echo "== $name: $(ls "$fw" | xargs)"
+            kind=$(file -b "$fw/$exe" 2>/dev/null || echo "missing")
+            echo "   binary: $kind"
+            if ! echo "$kind" | grep -q "dynamically linked shared library"; then
+              echo "   -> removing (not a dynamic library)"
               rm -rf "$fw"
             fi
           done
           rmdir "$FW_DIR" 2>/dev/null || true
           ls -la "$FW_DIR" 2>/dev/null || echo "No embedded frameworks left"
+          # The ONNX Runtime code must be inside the app binary itself (static link).
+          if grep -a -q "onnxruntime/core" "$APP_DIR/$APP_NAME"; then
+            echo "ONNX Runtime is linked into $APP_NAME"
+          else
+            echo "::warning::ONNX Runtime code not found in the app binary (custom voices would fall back to Apple voices)"
+          fi
 
       - name: Export IPA and verify signature
         run: |
@@ -157,8 +169,9 @@ jobs:
           # Guard: every embedded framework must be a dynamic library (see ITMS-90208 step).
           for fw in "$APP"/Frameworks/*.framework; do
             [ -d "$fw" ] || continue
-            if file "$fw/$(basename "$fw" .framework)" | grep -q "ar archive"; then
-              echo "::error::Static framework still embedded: $(basename "$fw")"; exit 1
+            exe=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$fw/Info.plist" 2>/dev/null || basename "$fw" .framework)
+            if ! file -b "$fw/$exe" 2>/dev/null | grep -q "dynamically linked shared library"; then
+              echo "::error::Non-dynamic framework still embedded: $(basename "$fw") ($(file -b "$fw/$exe" 2>&1))"; exit 1
             fi
           done
           du -sh "$APP_NAME.ipa"
