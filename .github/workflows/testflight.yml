@@ -6,7 +6,7 @@ name: TestFlight
 on:
   workflow_dispatch:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*"]  # app versions only; "voices-v1" etc. are model releases
 
 jobs:
   upload:
