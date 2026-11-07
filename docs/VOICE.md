@@ -82,13 +82,25 @@ Bu yalnızca anlaşılırlık; doğallık ve İngiliz aksanı dinleyerek değerl
 | Adım | Araç | Durum |
 |---|---|---|
 | Cümleler: Common Voice (CC0) + uygulama metinleri + antrenör kalıpları, fonem çifti kapsamasına göre seçim | `build_corpus.py` | ✅ TR 1.383, EN 1.369 cümle |
-| Ses üretimi (TR Chatterbox/george, EN Kokoro/michael), 22,05 kHz, kırpma, seviye eşitleme | `generate_dataset.py` | ✅ EN; TR sürüyor |
-| Whisper ile yanlış okunan kayıtları eleme (CER > %8) | `filter_dataset.py` | ✅ EN 1.360 kayıt / 1,15 sa |
+| Ses üretimi (TR Chatterbox/george, EN Kokoro/michael), 22,05 kHz, kırpma, seviye eşitleme | `generate_dataset.py` | ✅ TR 1.382, EN 1.369 |
+| Whisper ile yanlış okunan kayıtları eleme (CER > %8) | `filter_dataset.py` | ✅ TR 1.256 kayıt / 1,78 sa (126 elendi), EN 1.360 kayıt / 1,15 sa |
 | Fonemler: kendi dönüştürücümüz (espeak yok); Python ve Swift birebir aynı (1.215 satırlık altın dosya testi) | `phonemes.py`, `Phonemizer.swift` | ✅ |
-| Eğitim ortamı (piper1-gpl, yalnızca bilgisayarda) | `setup_piper.sh` | ⏳ kullanıcı onayı gerekli |
-| İnce ayar: LJ Speech medium (kamu malı) checkpoint'inden, `phoneme_type text` | `train_voice.sh` | ⏳ |
-| Uygulama: ONNX Runtime ile cihazda sentez, cümle cümle; erkek ses istendiğinde kullanılır, yoksa Apple sesi | `NeuralVoice.swift` | ✅ CI'da derleniyor; model bekliyor |
-| Dağıtım: modeller GitHub sürümü `voices-v1` dosyası olarak; CI/TestFlight indirir | iş akışları | ✅ adım hazır |
+| Eğitim ortamı (piper1-gpl, yalnızca bilgisayarda) | `setup_piper.sh` | ✅ (+ `onnxscript`) |
+| İnce ayar: LJ Speech medium (kamu malı) checkpoint'inden, `phoneme_type text`, 400 epoch, batch 32, bf16 | `train_voice.sh`, `overnight.sh` | ✅ 2026-11-07 (TR ~6,3 sa, EN ~4,2 sa, RTX 5070) |
+| ONNX dışa aktarma (TorchScript dışa aktarıcı; dynamo VITS'te çalışmıyor) | `export_onnx.py` | ✅ 63,5 MB / ses |
+| Uygulama: ONNX Runtime ile cihazda sentez, cümle cümle; erkek ses istendiğinde kullanılır, yoksa Apple sesi | `NeuralVoice.swift` | ✅ CI'da derleniyor |
+| Dağıtım: modeller GitHub sürümü `voices-v1` dosyası olarak; CI/TestFlight indirir | iş akışları | ⏳ sürüm kullanıcı tarafından oluşturulacak |
+
+**Sonuçlar (2026-11-07, `eval_voice.py`, 8 test cümlesi, Whisper large-v3-turbo):**
+
+| Ses | CER | Hatalar | UTMOS (doğrulama) | Hız (PC CPU) |
+|---|---|---|---|---|
+| `jarvis_tr_george` | %1,2 (tekrarlarda %0,8–1,2) | "Bugün" → "O gün" (bir kez), "Carvis" → "Caris" | 3,40 | 30 sn ses 0,7 sn'de |
+| `jarvis_en_michael` | %0,2 | yalnızca "four" → "for" (eşsesli) | ~3,9–4,0 | 24 sn ses 0,5 sn'de |
+
+- Kalite ~225. epoch'ta (TR) / ~275. epoch'ta (EN) düzleşti; daha uzun eğitim kazanç getirmez, sonraki iyileştirme veriden gelir.
+- float16 ağırlık (`shrink_onnx.py`, 32 MB): TR'de CER %1,7–3,5'e çıktı (3 ölçüm) → **kullanılmıyor**, tam (float32) modeller dağıtılıyor.
+- Cihazda ölçülmedi: gecikme, bellek, pil, gerçek dinleme (`docs/DEVICE_TESTING.md`).
 
 Neden fettah/dfki checkpoint'i değil: dfki ticari kullanıma kapalı (CC BY-NC-SA), fettah'ın checkpoint'i yok. Piper
 belgelerine göre farklı dilden ince ayar işe yarıyor; LJ Speech verisi kamu malı.
