@@ -89,7 +89,7 @@ Bu yalnızca anlaşılırlık; doğallık ve İngiliz aksanı dinleyerek değerl
 | İnce ayar: LJ Speech medium (kamu malı) checkpoint'inden, `phoneme_type text`, 400 epoch, batch 32, bf16 | `train_voice.sh`, `overnight.sh` | ✅ 2026-11-07 (TR ~6,3 sa, EN ~4,2 sa, RTX 5070) |
 | ONNX dışa aktarma (TorchScript dışa aktarıcı; dynamo VITS'te çalışmıyor) | `export_onnx.py` | ✅ 63,5 MB / ses |
 | Uygulama: ONNX Runtime ile cihazda sentez, cümle cümle; erkek ses istendiğinde kullanılır, yoksa Apple sesi | `NeuralVoice.swift` | ✅ CI'da derleniyor |
-| Dağıtım: modeller GitHub sürümü `voices-v1` dosyası olarak; CI/TestFlight indirir | iş akışları | ⏳ sürüm kullanıcı tarafından oluşturulacak |
+| Dağıtım: modeller GitHub sürümü `voices-v1` dosyası olarak; CI/TestFlight indirir | iş akışları | ✅ `voices-v1` yayında (2026-11-07), TestFlight derlemesine girdi |
 
 **Sonuçlar (2026-11-07, `eval_voice.py`, 8 test cümlesi, Whisper large-v3-turbo):**
 

@@ -15,7 +15,7 @@ _Son güncelleme: 2026-11-07_
 | Kamera + Vision poz | ✅ Kod | ❌ Cihaz testi gerekli |
 | Ses (STT/TTS, AEC, araya girme) | ✅ Kod | ❌ Cihaz testi gerekli |
 | Ses kalitesi (cinsiyete göre ses, EQ/kompresör, okunuş hazırlığı, 48 kHz) | ✅ Kod + testler (`SpeechText`) | ❌ Cihazda dinlenmeli — ayrıntı `docs/VOICE.md` |
-| Özel erkek sesler (Piper/ONNX, TR + EN, cihazda) | ✅ Eğitildi, PC'de Whisper CER TR %1,2 / EN %0,2 | ⏳ `voices-v1` sürümü; ❌ cihaz testi |
+| Özel erkek sesler (Piper/ONNX, TR + EN, cihazda) | ✅ Eğitildi, PC'de Whisper CER TR %1,2 / EN %0,2; `voices-v1` yayında, TestFlight'ta | ❌ Cihaz testi |
 | Sesli onboarding (cevapları konuşarak verme) | ✅ Ayrıştırıcı + testler + ekran entegrasyonu | ❌ Cihaz testi gerekli |
 | Yerel LLM (Apple Foundation Models) | ✅ Kod (iOS 26+) | ❌ Cihaz testi gerekli |
 | Planlayıcı, aşamalı yüklenme, kaçırılan antrenmanı taşıma | ✅ Kod + testler | ✅ Birim testleri |
@@ -70,6 +70,7 @@ Yeni sürüm: `gh workflow run TestFlight -R niinova22-blip/jarvis-fit`.
 2. App Store Connect'te abonelik ürünleri (`com.niinova.jarvisfit.premium.monthly` 12,99 USD,
    `...yearly` 79,99 USD), gizlilik politikası URL'si (docs/privacy.html barındırılmalı).
 3. App Store adı/marka kontrolü (bkz. RESEARCH.md › Riskler).
-4. Ses: özel erkek sesler (TR george, EN michael) **eğitildi** (2026-11-07; Whisper CER TR %1,2, EN %0,2). Kalan:
-   `voices-v1` GitHub sürümünü oluşturmak (modeller `/root/voice/out`), TestFlight, cihazda dinleme/gecikme ölçümü.
+4. Ses: özel erkek sesler (TR george, EN michael) **eğitildi** (2026-11-07; Whisper CER TR %1,2, EN %0,2),
+   GitHub sürümü `voices-v1` yayında, TestFlight'a yüklendi (run 42410223963). Kalan: cihazda dinleme, ilk ses
+   gecikmesi, bellek ve pil ölçümü (Ayarlar'da "JARVIS · Özel ses" görünmeli).
    Ayrıntı: `docs/VOICE.md` › Özel ses hattı.
