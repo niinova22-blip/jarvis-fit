@@ -49,7 +49,7 @@ struct OnboardingView: View {
             .opacity(canContinue ? 1 : 0.4)
             .padding(20)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .novaBackground()
         .onAppear {
             speakQuestion()
             if model.voice.hasPermissions { startVoiceAnswers() }
@@ -72,7 +72,7 @@ struct OnboardingView: View {
 
     private var question: String {
         switch step {
-        case 0: return t("Merhaba, ben JARVIS. Kişisel spor mentorunum. Hangi dilde konuşalım?", "Hello, I'm JARVIS, your personal fitness mentor. Which language should we speak?")
+        case 0: return t("Merhaba, ben NOVA. Kişisel spor mentorunum. Hangi dilde konuşalım?", "Hello, I'm NOVA, your personal fitness mentor. Which language should we speak?")
         case 1: return t("Sana nasıl hitap edeyim ve nasıl bir antrenör istersin?", "What should I call you, and what kind of coach do you want?")
         case 2: return t("Hangi vücuda ulaşmak istiyorsun?", "Which body are you working towards?")
         case 3: return t("Biraz seni tanıyayım. Yaşın, boyun ve kilon?", "Let me get to know you. Your age, height and weight?")
@@ -197,8 +197,8 @@ struct OnboardingView: View {
                         .font(Theme.body).foregroundStyle(Theme.warning)
                 }
                 Toggle(isOn: $acceptedDisclaimer) {
-                    Text(t("JARVIS FIT tıbbi tavsiye vermez ve teşhis koymaz. Ağrı, baş dönmesi veya göğüs ağrısı hissedersen antrenmanı bırakıp bir sağlık profesyoneline başvuracağımı anlıyorum.",
-                           "JARVIS FIT does not give medical advice or diagnoses. I understand I should stop and contact a health professional if I feel pain, dizziness or chest pain."))
+                    Text(t("NOVA Coach tıbbi tavsiye vermez ve teşhis koymaz. Ağrı, baş dönmesi veya göğüs ağrısı hissedersen antrenmanı bırakıp bir sağlık profesyoneline başvuracağımı anlıyorum.",
+                           "NOVA Coach does not give medical advice or diagnoses. I understand I should stop and contact a health professional if I feel pain, dizziness or chest pain."))
                         .font(Theme.caption).foregroundStyle(Theme.textSecondary)
                 }
                 .tint(Theme.accent)
@@ -273,7 +273,7 @@ struct OnboardingView: View {
 
     private func startVoiceAnswers() {
         let voice = model.voice
-        // JARVIS's own question is never taken as an answer (no barge-in during onboarding).
+        // NOVA's own question is never taken as an answer (no barge-in during onboarding).
         voice.isBargeIn = { _ in false }
         voice.onUtterance = { text, isFinal in
             guard isFinal else { return false }

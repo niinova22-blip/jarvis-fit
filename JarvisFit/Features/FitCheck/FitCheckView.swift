@@ -43,7 +43,7 @@ struct FitCheckView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .navigationTitle("Fit Check")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("Kapat", "Close")) { dismiss() } } }
             .fullScreenCover(isPresented: $showCamera) {

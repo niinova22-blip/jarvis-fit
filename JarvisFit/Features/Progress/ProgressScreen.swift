@@ -26,7 +26,7 @@ struct ProgressScreen: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .navigationTitle(model.t("Gelişim", "Progress"))
             .sheet(isPresented: $showFitCheck) { FitCheckView() }
             .sheet(isPresented: $showPaywall) { PaywallView() }

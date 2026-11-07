@@ -1,6 +1,6 @@
 import Foundation
 
-/// Text -> IPA phonemes for JARVIS's own neural voices (Piper/VITS models trained with
+/// Text -> IPA phonemes for NOVA's own neural voices (Piper/VITS models trained with
 /// `phoneme_type text`). Port of `tools/voice/phonemes.py`; both are checked against the same
 /// golden file, because the model only works with exactly the phonemes it was trained on.
 /// No espeak-ng (GPL) is involved.

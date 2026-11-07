@@ -28,8 +28,8 @@ struct ChatView: View {
                 }
                 inputBar
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("JARVIS")
+            .novaBackground()
+            .navigationTitle("NOVA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { LiveOrb(voice: model.voice, size: 30) }
@@ -90,7 +90,7 @@ struct ChatView: View {
                     .background(Circle().fill(handsFree ? Theme.accent : Theme.accentSoft))
             }
             .accessibilityLabel(handsFree ? model.t("Dinlemeyi durdur", "Stop listening") : model.t("Sesli konuş", "Talk"))
-            TextField(model.t("JARVIS'e yaz…", "Message JARVIS…"), text: $input)
+            TextField(model.t("NOVA'ya yaz…", "Message NOVA…"), text: $input)
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
                 .onSubmit { send(input) }

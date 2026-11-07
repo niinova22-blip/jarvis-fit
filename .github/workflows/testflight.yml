@@ -97,6 +97,24 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -E "error:" "$RUNNER_TEMP/archive.log" | sort -u | head -100; tail -30 "$RUNNER_TEMP/archive.log"; exit 1; }
           tail -5 "$RUNNER_TEMP/archive.log"
 
+      - name: Remove embedded static frameworks (ITMS-90208)
+        # onnxruntime's SPM xcframework is a *static* library wrapped in a .framework. It is already
+        # linked into the app binary, but Xcode also copies it into Frameworks/, and App Store
+        # Connect rejects a framework without a dynamic binary (ITMS-90208). exportArchive re-signs.
+        run: |
+          FW_DIR="$RUNNER_TEMP/JarvisFit.xcarchive/Products/Applications/$APP_NAME.app/Frameworks"
+          [ -d "$FW_DIR" ] || exit 0
+          for fw in "$FW_DIR"/*.framework; do
+            [ -d "$fw" ] || continue
+            bin="$fw/$(basename "$fw" .framework)"
+            if file "$bin" | grep -q "ar archive"; then
+              echo "Removing static framework $(basename "$fw") ($(du -sh "$fw" | cut -f1))"
+              rm -rf "$fw"
+            fi
+          done
+          rmdir "$FW_DIR" 2>/dev/null || true
+          ls -la "$FW_DIR" 2>/dev/null || echo "No embedded frameworks left"
+
       - name: Export IPA and verify signature
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
@@ -136,6 +154,14 @@ jobs:
             (cd ipa && zip -qry "../$APP_NAME.ipa" .)
           fi
           codesign --verify --deep --strict --verbose=2 "$APP"
+          # Guard: every embedded framework must be a dynamic library (see ITMS-90208 step).
+          for fw in "$APP"/Frameworks/*.framework; do
+            [ -d "$fw" ] || continue
+            if file "$fw/$(basename "$fw" .framework)" | grep -q "ar archive"; then
+              echo "::error::Static framework still embedded: $(basename "$fw")"; exit 1
+            fi
+          done
+          du -sh "$APP_NAME.ipa"
 
       - name: Upload to TestFlight
         run: |

@@ -16,7 +16,7 @@ public enum MemoryKind: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// A single fact JARVIS remembers. Only short facts are stored — never raw conversations.
+/// A single fact NOVA remembers. Only short facts are stored — never raw conversations.
 public struct MemoryItem: Codable, Hashable, Identifiable, Sendable {
     public var id: UUID
     public var kind: MemoryKind
@@ -57,7 +57,7 @@ public enum MemoryExtractor {
         var words = text.split(separator: " ").map(String.init)
         words.removeAll { word in
             let lower = word.lowercased()
-            if lower.hasPrefix("jarvis") { return true }
+            if IntentParser.wakeWords.contains(where: { lower.hasPrefix($0) }) { return true }
             if lower.contains("@") { return true }
             return lower.filter(\.isNumber).count >= 7
         }

@@ -7,8 +7,8 @@ import JarvisCore
 ///
 /// Speech synthesis is rendered with `AVSpeechSynthesizer.write` and played through a player node
 /// of the same engine whose input has Apple's voice processing (echo cancellation) enabled, so
-/// JARVIS's own voice is removed from the microphone signal. In addition, while JARVIS speaks only
-/// barge-in words ("dur", "stop", "Jarvis", symptoms) are accepted, which guards against residual echo.
+/// NOVA's own voice is removed from the microphone signal. In addition, while NOVA speaks only
+/// barge-in words ("dur", "stop", "Nova", symptoms) are accepted, which guards against residual echo.
 @MainActor
 final class VoiceCoordinator: NSObject, ObservableObject {
     @Published private(set) var orbState: JarvisOrb.State = .idle
@@ -25,7 +25,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
 
     /// Called with transcripts. Return true when the text was acted upon (recognition restarts).
     var onUtterance: ((String, Bool) -> Bool)?
-    /// Utterances heard while JARVIS speaks are only passed on when this returns true.
+    /// Utterances heard while NOVA speaks are only passed on when this returns true.
     var isBargeIn: ((String) -> Bool)?
 
     private(set) var language: AppLanguage = .turkish
@@ -48,7 +48,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     private let playerFormat = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
     /// "Name · Quality"; the voice's native sample rate is appended once the first buffer arrives.
     private var voiceBaseDescription = ""
-    /// JARVIS's own voice (bundled Piper model) when it applies; otherwise Apple voices are used.
+    /// NOVA's own voice (bundled Piper model) when it applies; otherwise Apple voices are used.
     private var neuralVoice: NeuralVoice?
     private var neuralEnabled = true
     private var neuralLoadKey: String?
@@ -249,7 +249,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
             request.requiresOnDeviceRecognition = true
         }
         request.taskHint = .dictation
-        request.contextualStrings = ["Jarvis", "squat", "plank", "crunch", "lunge", "jumping jack"]
+        request.contextualStrings = ["Nova", "NOVA Coach", "squat", "plank", "crunch", "lunge", "jumping jack"]
         self.request = request
         RequestBox.shared.request = request
         lastPartial = ""
@@ -302,7 +302,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     private func handleTranscript(_ text: String, isFinal: Bool) {
         guard text != lastPartial || isFinal else { return }
         lastPartial = text
-        // Ignore what was heard while JARVIS speaks (and shortly after) unless it is a barge-in.
+        // Ignore what was heard while NOVA speaks (and shortly after) unless it is a barge-in.
         let echoWindow = isSpeaking || Date().timeIntervalSince(speechEndedAt) < 0.35
         if echoWindow {
             guard isBargeIn?(text) ?? false else { return }
@@ -491,7 +491,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
         return error == nil && output.frameLength > 0 ? output : nil
     }
 
-    /// Loads JARVIS's own voice for the language in the background (the model is tens of MB).
+    /// Loads NOVA's own voice for the language in the background (the model is tens of MB).
     private func updateNeuralVoice() {
         guard NeuralVoiceCatalog.shouldUse(enabled: neuralEnabled, wantedGender: wantedGender, manualVoicePicked: voiceIdentifier != nil) else {
             neuralVoice = nil
@@ -519,7 +519,7 @@ final class VoiceCoordinator: NSObject, ObservableObject {
     }
 
     private func showNeuralDescription() {
-        voiceBaseDescription = "JARVIS · " + (language == .turkish ? "Özel ses" : "Custom voice")
+        voiceBaseDescription = "NOVA · " + (language == .turkish ? "Özel ses" : "Custom voice")
         activeVoiceDescription = voiceBaseDescription
         suggestVoiceDownload = false
         converterInputFormat = nil

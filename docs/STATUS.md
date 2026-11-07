@@ -1,6 +1,23 @@
-# JARVIS FIT — Geliştirme Durumu
+# NOVA Coach (eski adı JARVIS FIT) — Geliştirme Durumu
 
-_Son güncelleme: 2026-11-07_
+_Son güncelleme: 2026-11-08_
+
+## 2026-11-08 — Yeniden markalama + App Store reddi düzeltmesi
+
+- **ITMS-90208 (1.0 build 106 reddedildi):** `onnxruntime.framework` (özel sesler için ONNX Runtime) aslında
+  `.framework` içinde **statik** kütüphane (`!<arch>`). Kod zaten uygulama ikilisine bağlanıyor, ama Xcode SPM
+  üzerinden onu bir de `Frameworks/` içine kopyalıyordu; Apple bu paketi reddetti. Düzeltme `testflight.yml`:
+  arşivden sonra statik framework'ler silinir (exportArchive yeniden imzalar), IPA'da statik framework kalırsa
+  iş akışı hata verir. Ek kazanç: IPA ~40 MB küçülür.
+- **Yeni ad: NOVA Coach**, asistanın adı **NOVA** ("JARVIS" Marvel/Disney markası riskini kaldırır). Uyandırma
+  kelimesi "Nova" (eski "Jarvis" de hâlâ anlaşılır). Bundle ID, hedef/tip adları (JarvisCore, JarvisFit) ve
+  abonelik ürün kimlikleri değişmedi. **App Store Connect'teki uygulama adı elle "NOVA Coach" yapılmalı.**
+- **Yeni tasarım:** derin uzay zemin + mor bulutsu ışıltı, "nova lime" vurgu rengi, geniş (expanded) başlık
+  yazısı, degrade kartlar, kapsül butonlar, yıldız çekirdekli yeni durum küresi, NOVA logotipi, Bugün ekranında
+  selamlama başlığı. Yeni ikon: `tools/brand/make_icon.py`.
+- **Antrenman sesleri:** tekrar "blip"i, geri sayım tıkı, "başla" tonu, set ve antrenman bitiş melodisi + haptik
+  (`CueSound` JarvisCore'da, 4 test; Ayarlar › Kamera ve bildirimler'den kapatılabilir). ❌ Cihazda dinlenmedi.
+
 
 ## Özet
 

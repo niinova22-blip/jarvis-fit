@@ -37,6 +37,7 @@ final class JarvisFitTests: XCTestCase {
         json.removeValue(forKey: "lastWeeklyReportWeek")
         var settings = json["settings"] as! [String: Any]
         settings.removeValue(forKey: "performance")
+        settings.removeValue(forKey: "cueSounds")
         json["settings"] = settings
         json["chat"] = "not an array"
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
@@ -45,6 +46,7 @@ final class JarvisFitTests: XCTestCase {
         XCTAssertEqual(decoded.weights.count, 1)
         XCTAssertTrue(decoded.chat.isEmpty)
         XCTAssertEqual(decoded.settings.performance, .automatic)
+        XCTAssertTrue(decoded.settings.cueSounds)
     }
 
     func testVisionJointMapCoversAllJoints() {

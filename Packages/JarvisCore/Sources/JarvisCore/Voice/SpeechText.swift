@@ -226,7 +226,7 @@ public enum SpeechText {
     /// Turkish respellings of English fitness words (matched at word start, so suffixes are kept:
     /// "squatlar" -> "skuatlar"). Longer phrases first.
     private static let turkishLexicon: [(String, String)] = [
-        ("jarvis fit", "Carvis Fit"), ("jarvis", "Carvis"),
+        ("nova coach", "Nova Koç"), ("nova", "Nova"), ("jarvis fit", "Carvis Fit"), ("jarvis", "Carvis"),
         ("push-up", "puşap"), ("push up", "puşap"), ("pushup", "puşap"),
         ("jumping jack", "camping cek"), ("biceps curl", "bayseps körl"), ("biceps", "bayseps"),
         ("glute bridge", "glut briç"), ("shoulder press", "şoldır pres"), ("lateral raise", "laterıl reyz"),
@@ -234,7 +234,7 @@ public enum SpeechText {
         ("deadlift", "dedlift"), ("burpee", "börpi"), ("cardio", "kardiyo"), ("fit check", "fit çek"), ("iphone", "ayfon")
     ]
     /// All-caps names are spelled letter by letter by English voices.
-    private static let englishLexicon: [(String, String)] = [("jarvis fit", "Jarvis Fit"), ("jarvis", "Jarvis")]
+    private static let englishLexicon: [(String, String)] = [("nova coach", "Nova Coach"), ("nova", "Nova"), ("jarvis fit", "Jarvis Fit"), ("jarvis", "Jarvis")]
 
     private static func applyLexicon(_ text: String, language: AppLanguage) -> String {
         let tr = language == .turkish

@@ -55,6 +55,10 @@ final class VoiceTests: XCTestCase {
         XCTAssertNil(IntentParser.stripWakeWord("kaç tekrar kaldı", requireWakeWord: true))
         XCTAssertEqual(IntentParser.stripWakeWord("Jarvis kaç tekrar kaldı", requireWakeWord: true), "kac tekrar kaldi")
         XCTAssertEqual(IntentParser.stripWakeWord("hey jarvis, pause", requireWakeWord: true), "hey pause")
+        XCTAssertEqual(IntentParser.stripWakeWord("Nova kaç tekrar kaldı", requireWakeWord: true), "kac tekrar kaldi")
+        XCTAssertEqual(IntentParser.stripWakeWord("Hey Nova, pause", requireWakeWord: true), "hey pause")
+        XCTAssertEqual(IntentParser().parse("Nova, kaç tekrar kaldı?", inWorkout: true), .query(.repsRemaining))
+        XCTAssertEqual(MemoryExtractor.sanitize("Nova en sevdiğim hareket squat"), "en sevdiğim hareket squat")
     }
 
     func testNumberWords() {

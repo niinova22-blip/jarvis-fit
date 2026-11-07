@@ -25,8 +25,8 @@ enum NotificationScheduler {
                 let content = UNMutableNotificationContent()
                 content.title = tr ? "Antrenman zamanı" : "Time to train"
                 let muscles = workout.focus.prefix(2).map { $0.title.resolve(profile.language) }.joined(separator: tr ? " ve " : " and ")
-                content.body = tr ? "Bugün \(muscles) çalışıyoruz. Telefonu yerleştir, gerisini JARVIS halleder."
-                                  : "Today it's \(muscles). Set up your phone and JARVIS will handle the rest."
+                content.body = tr ? "Bugün \(muscles) çalışıyoruz. Telefonu yerleştir, gerisini NOVA halleder."
+                                  : "Today it's \(muscles). Set up your phone and NOVA will handle the rest."
                 content.sound = .default
                 var components = DateComponents()
                 // DateComponents weekday: 1 = Sunday.

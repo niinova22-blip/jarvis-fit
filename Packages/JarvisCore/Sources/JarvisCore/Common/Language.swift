@@ -1,6 +1,6 @@
 import Foundation
 
-/// Languages supported by JARVIS (speech recognition, phrases, parsing).
+/// Languages supported by NOVA (speech recognition, phrases, parsing).
 public enum AppLanguage: String, Codable, CaseIterable, Sendable {
     case turkish = "tr"
     case english = "en"

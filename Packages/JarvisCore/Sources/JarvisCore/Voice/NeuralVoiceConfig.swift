@@ -38,7 +38,7 @@ public struct NeuralVoiceConfig: Equatable, Sendable {
     }
 }
 
-/// JARVIS's own voices bundled with the app (trained by tools/voice; male voices).
+/// NOVA's own voices bundled with the app (trained by tools/voice; male voices).
 public enum NeuralVoiceCatalog {
     public static func modelName(for language: AppLanguage) -> String {
         language == .turkish ? "jarvis_tr_george" : "jarvis_en_michael"

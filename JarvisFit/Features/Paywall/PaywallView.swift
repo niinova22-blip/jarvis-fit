@@ -10,7 +10,7 @@ struct PaywallView: View {
 
     private var features: [(String, String)] {
         [("camera.viewfinder", model.t("Sınırsız canlı antrenman", "Unlimited live workouts")),
-         ("waveform", model.t("Gelişmiş JARVIS sohbeti ve kişisel hafıza", "Advanced JARVIS chat and personal memory")),
+         ("waveform", model.t("Gelişmiş NOVA sohbeti ve kişisel hafıza", "Advanced NOVA chat and personal memory")),
          ("fork.knife", model.t("Sınırsız yerel yemek analizi", "Unlimited on-device meal analysis")),
          ("figure.stand", model.t("Fit Check vücut analizi", "Fit Check body analysis")),
          ("chart.line.uptrend.xyaxis", model.t("Gelişim raporları ve adaptif program", "Progress reports and adaptive plan"))]
@@ -25,7 +25,7 @@ struct PaywallView: View {
                         JarvisOrb(state: .speaking, size: 110)
                         Spacer()
                     }
-                    Text("JARVIS FIT Premium").font(Theme.display(30)).foregroundStyle(.white)
+                    Text("NOVA Coach Premium").font(Theme.display(30)).foregroundStyle(.white)
                     ForEach(features.indices, id: \.self) { i in
                         Label(features[i].1, systemImage: features[i].0).font(Theme.body).foregroundStyle(.white)
                     }
@@ -92,7 +92,7 @@ struct PaywallView: View {
                 }
                 .padding(20)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("Kapat", "Close")) { dismiss() } } }
         }
     }

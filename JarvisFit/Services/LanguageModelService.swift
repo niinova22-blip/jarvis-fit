@@ -9,7 +9,7 @@ import FoundationModels
 /// Uses Apple's on-device Foundation Model (iOS 26+, Apple Intelligence devices such as iPhone
 /// 15 Pro and newer). It runs entirely on device, needs no download and is covered by Apple's
 /// developer terms. When it is unavailable (older device/OS, Apple Intelligence off, unsupported
-/// language) JARVIS answers with deterministic replies only.
+/// language) NOVA answers with deterministic replies only.
 @MainActor
 final class LanguageModelService: ObservableObject {
     enum Availability: Equatable {

@@ -31,6 +31,7 @@ final class LiveWorkoutController: ObservableObject {
     private var cameraChanges: AnyCancellable?
     private var recorder: PoseRecorder?
     private var setViews: [Int: CameraView] = [:]
+    private let feedback = CueFeedback()
 
     init(plan: LiveWorkoutPlan, planned: PlannedWorkout?, model: AppModel, assistant: JarvisAssistant) {
         self.plan = plan
@@ -52,6 +53,8 @@ final class LiveWorkoutController: ObservableObject {
         guard !started, let model else { return }
         started = true
         UIApplication.shared.isIdleTimerDisabled = true
+        feedback.soundsEnabled = model.data.settings.cueSounds
+        feedback.hapticsEnabled = model.data.settings.cueSounds
         camera.onPose = { [weak self] frame in self?.handle(frame) }
         let front = model.data.settings.useFrontCamera
         camera.start(front: front, preference: model.data.settings.performance)
@@ -64,7 +67,7 @@ final class LiveWorkoutController: ObservableObject {
         voice.isBargeIn = { text in
             let normalized = TextNormalizer.normalize(text)
             if SafetyDetector.detect(text) != nil { return true }
-            let words = ["jarvis", "dur", "durdur", "bekle", "stop", "pause", "wait", "sus", "quiet", "bitti", "done"]
+            let words = ["nova", "jarvis", "dur", "durdur", "bekle", "stop", "pause", "wait", "sus", "quiet", "bitti", "done"]
             let tokens = Set(normalized.split(separator: " ").map(String.init))
             return words.contains { tokens.contains($0) }
         }
@@ -181,6 +184,7 @@ final class LiveWorkoutController: ObservableObject {
 
     private func apply(_ cues: [CoachCue]) {
         for cue in cues {
+            feedback.play(for: cue)
             let text = coachVoice.text(for: cue)
             switch cue {
             case .rep:

@@ -11,6 +11,7 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    hero
                     briefingCard
                     if let report = model.pendingWeeklyReport { weeklyReportCard(report) }
                     todayCard
@@ -20,9 +21,10 @@ struct DashboardView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("JARVIS FIT")
+            .novaBackground()
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) { NovaWordmark(size: 18) }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel(model.t("Ayarlar", "Settings"))
@@ -47,6 +49,27 @@ struct DashboardView: View {
         guard model.data.settings.speakDailyBriefing, !model.briefingSpokenToday, !briefing.isEmpty else { return }
         model.markBriefingSpoken()
         model.voice.say(briefing, priority: .normal)
+    }
+
+    /// Large greeting + date, the first thing seen on the Today tab.
+    private var hero: some View {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let greeting: String = {
+            switch hour {
+            case 5..<12: return model.t("Günaydın", "Good morning")
+            case 12..<18: return model.t("İyi günler", "Good afternoon")
+            case 18..<23: return model.t("İyi akşamlar", "Good evening")
+            default: return model.t("İyi geceler", "Good night")
+            }
+        }()
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: model.t("tr_TR", "en_US")))).uppercased())
+                .font(.system(.caption).weight(.bold).width(.expanded)).tracking(1.4)
+                .foregroundStyle(Theme.accent)
+            Text(greeting).font(Theme.display(32)).foregroundStyle(.white)
+                .minimumScaleFactor(0.7).lineLimit(1)
+        }
+        .padding(.top, 4)
     }
 
     private var briefingCard: some View {
@@ -180,7 +203,7 @@ struct DashboardView: View {
 
     private var recommendationsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(text: model.t("JARVIS önerileri", "JARVIS suggestions"))
+            SectionTitle(text: model.t("NOVA önerileri", "NOVA suggestions"))
             ForEach(model.recommendations) { rec in
                 Card {
                     VStack(alignment: .leading, spacing: 8) {

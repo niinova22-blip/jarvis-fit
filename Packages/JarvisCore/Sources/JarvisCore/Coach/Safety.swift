@@ -1,6 +1,6 @@
 import Foundation
 
-/// Symptoms that stop a workout. JARVIS never diagnoses; it stops, gives first-step safety advice
+/// Symptoms that stop a workout. NOVA never diagnoses; it stops, gives first-step safety advice
 /// and points to professional help.
 public enum SafetyConcern: String, Codable, CaseIterable, Sendable {
     /// Chest pain, pressure, or pain spreading to the arm/jaw — possible emergency.

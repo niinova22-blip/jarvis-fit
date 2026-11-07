@@ -24,7 +24,9 @@ public enum VoiceIntent: Equatable, Sendable {
 public struct IntentParser: Sendable {
     public init() {}
 
-    public static let wakeWords = ["jarvis", "carvis", "cervis", "jarvis'", "jervis", "harvis"]
+    /// "Nova" is the assistant's name; common recogniser spellings are accepted. The former name
+    /// "Jarvis" is still understood so existing users are not locked out.
+    public static let wakeWords = ["nova", "nowa", "noova", "nuva", "jarvis", "carvis", "cervis", "jervis", "harvis"]
 
     /// Removes the wake word; returns nil if `requireWakeWord` and none was present.
     public static func stripWakeWord(_ utterance: String, requireWakeWord: Bool) -> String? {

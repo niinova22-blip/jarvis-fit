@@ -24,7 +24,7 @@ public struct VoiceCandidate: Equatable, Sendable {
     }
 }
 
-/// Which voice gender JARVIS uses.
+/// Which voice gender NOVA uses.
 public enum VoiceGenderPreference: String, Codable, CaseIterable, Sendable {
     /// Male voice for male users, female voice for female users.
     case matchUser, female, male

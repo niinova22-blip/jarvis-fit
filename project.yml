@@ -40,7 +40,7 @@ targets:
     info:
       path: JarvisFit/Resources/Info.plist
       properties:
-        CFBundleDisplayName: JARVIS FIT
+        CFBundleDisplayName: NOVA Coach
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
@@ -56,10 +56,10 @@ targets:
           - UIInterfaceOrientationPortrait
         UIRequiredDeviceCapabilities: [arm64]
         UIUserInterfaceStyle: Dark
-        NSCameraUsageDescription: JARVIS FIT uses the camera to follow your body during live workouts, to analyse meal photos and for Fit Check scans. Video is processed on this iPhone and never uploaded.
-        NSMicrophoneUsageDescription: JARVIS FIT uses the microphone so you can talk to JARVIS hands-free during workouts. Audio is processed on this iPhone.
-        NSSpeechRecognitionUsageDescription: JARVIS FIT turns your voice commands into text on this iPhone so JARVIS can respond.
-        NSPhotoLibraryAddUsageDescription: JARVIS FIT can save your Fit Check comparison images to your photo library when you ask it to.
+        NSCameraUsageDescription: NOVA Coach uses the camera to follow your body during live workouts, to analyse meal photos and for Fit Check scans. Video is processed on this iPhone and never uploaded.
+        NSMicrophoneUsageDescription: NOVA Coach uses the microphone so you can talk to NOVA hands-free during workouts. Audio is processed on this iPhone.
+        NSSpeechRecognitionUsageDescription: NOVA Coach turns your voice commands into text on this iPhone so NOVA can respond.
+        NSPhotoLibraryAddUsageDescription: NOVA Coach can save your Fit Check comparison images to your photo library when you ask it to.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.niinova.jarvisfit

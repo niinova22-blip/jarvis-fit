@@ -7,7 +7,7 @@ struct AppSettings: Codable, Equatable {
     var workoutReminders = true
     var weeklyReport = true
     var voiceIdentifier: String?
-    /// Outside workouts JARVIS only reacts after hearing "Jarvis".
+    /// Outside workouts NOVA only reacts after hearing "Nova".
     var requireWakeWord = true
     var savePhotos = true
     var performance: PerformancePreference = .automatic
@@ -15,10 +15,12 @@ struct AppSettings: Codable, Equatable {
     var recordPoseData = false
     /// Male voice for male users, female voice for female users (unless changed).
     var voiceGender: VoiceGenderPreference = .matchUser
-    /// Studio-style processing (EQ, compression, subtle room) on JARVIS's voice.
+    /// Studio-style processing (EQ, compression, subtle room) on NOVA's voice.
     var voiceEnhancement = true
-    /// JARVIS's own on-device voice (used for male voice when bundled); off = Apple voices only.
+    /// NOVA's own on-device voice (used for male voice when bundled); off = Apple voices only.
     var neuralVoice = true
+    /// Short tones + haptics for reps, countdown, "go" and finished sets in live workouts.
+    var cueSounds = true
 
     init() {}
 
@@ -39,6 +41,7 @@ struct AppSettings: Codable, Equatable {
         voiceGender = c.value(.voiceGender, d.voiceGender)
         voiceEnhancement = c.value(.voiceEnhancement, d.voiceEnhancement)
         neuralVoice = c.value(.neuralVoice, d.neuralVoice)
+        cueSounds = c.value(.cueSounds, d.cueSounds)
     }
 
     private static let defaults = AppSettings()

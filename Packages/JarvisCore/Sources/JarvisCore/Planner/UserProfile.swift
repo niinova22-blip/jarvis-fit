@@ -177,7 +177,7 @@ public struct UserProfile: Codable, Hashable, Sendable {
     /// Basic validation used by onboarding; returns problems to show the user.
     public func validationErrors() -> [LocalizedText] {
         var errors: [LocalizedText] = []
-        if age < 16 { errors.append(LocalizedText(tr: "JARVIS FIT 16 yaş ve üzeri içindir.", en: "JARVIS FIT is for ages 16 and up.")) }
+        if age < 16 { errors.append(LocalizedText(tr: "NOVA Coach 16 yaş ve üzeri içindir.", en: "NOVA Coach is for ages 16 and up.")) }
         if age > 100 { errors.append(LocalizedText(tr: "Yaşı kontrol et.", en: "Please check your age.")) }
         if heightCm < 120 || heightCm > 230 { errors.append(LocalizedText(tr: "Boy 120–230 cm arasında olmalı.", en: "Height must be 120–230 cm.")) }
         if weightKg < 35 || weightKg > 250 { errors.append(LocalizedText(tr: "Kilo 35–250 kg arasında olmalı.", en: "Weight must be 35–250 kg.")) }

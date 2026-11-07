@@ -31,7 +31,7 @@ struct RootView: View {
                 OnboardingView()
             }
         }
-        .background(Theme.background.ignoresSafeArea())
+        .novaBackground()
         // Personalised notifications are rebuilt from current data whenever the app becomes active.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && model.isOnboarded { NotificationScheduler.reschedule(model: model) }
@@ -64,8 +64,11 @@ struct MainTabView: View {
                 .tabItem { Label(model.t("Gelişim", "Progress"), systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(AppTab.progress)
             ChatView()
-                .tabItem { Label("JARVIS", systemImage: "waveform") }
+                .tabItem { Label("NOVA", systemImage: "sparkle") }
                 .tag(AppTab.chat)
         }
+        .toolbarBackground(Theme.background.opacity(0.92), for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .sensoryFeedback(.selection, trigger: model.selectedTab)
     }
 }

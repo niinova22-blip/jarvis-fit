@@ -31,7 +31,7 @@ struct NutritionView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .navigationTitle(model.t("Beslenme", "Nutrition"))
             .sheet(item: $analysis) { state in PhotoConfirmSheet(state: state) }
             .sheet(isPresented: $showSearch) { FoodSearchSheet() }
@@ -212,7 +212,7 @@ struct PhotoConfirmSheet: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .navigationTitle(model.t("Yemeği doğrula", "Confirm meal"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -400,7 +400,7 @@ struct VoiceMealSheet: View {
                 Spacer()
             }
             .padding(20)
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("Kapat", "Close")) { finish() } } }
             .onAppear(perform: listen)
         }

@@ -66,7 +66,7 @@ struct WorkoutPlanView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .navigationTitle(model.t("Programın", "Your plan"))
             .sheet(isPresented: $showPaywall) { PaywallView() }
             .sheet(item: $manualLog) { planned in ManualLogSheet(planned: planned) }

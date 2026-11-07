@@ -3,7 +3,7 @@ import AVFoundation
 import OnnxRuntimeBindings
 import JarvisCore
 
-/// JARVIS's own on-device voice: a Piper (VITS) model run with ONNX Runtime.
+/// NOVA's own on-device voice: a Piper (VITS) model run with ONNX Runtime.
 /// Text -> SpeechText.prepare (caller) -> Phonemizer -> phoneme ids -> model -> 22.05 kHz audio.
 /// Bundled files: `<name>.onnx`, `<name>.onnx.json` and, for English, `en_lexicon.tsv`.
 final class NeuralVoice: @unchecked Sendable {

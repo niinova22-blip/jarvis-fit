@@ -1,6 +1,6 @@
 import Foundation
 
-/// Everything JARVIS knows about "now" when answering.
+/// Everything NOVA knows about "now" when answering.
 public struct AssistantContext: Sendable {
     public var profile: UserProfile
     public var language: AppLanguage { profile.language }
@@ -174,8 +174,8 @@ public enum PromptBuilder {
         let tr = c.language == .turkish
         var lines: [String] = []
         lines.append(tr
-            ? "Sen JARVIS'sin: kullanıcının cihazında çalışan kişisel spor mentorusun. Her zaman Türkçe, kısa ve doğal konuş (en fazla 3 cümle)."
-            : "You are JARVIS, a personal fitness mentor running on the user's device. Always answer in English, short and natural (max 3 sentences).")
+            ? "Sen NOVA'sın: kullanıcının cihazında çalışan kişisel spor mentorusun. Her zaman Türkçe, kısa ve doğal konuş (en fazla 3 cümle)."
+            : "You are NOVA, a personal fitness mentor running on the user's device. Always answer in English, short and natural (max 3 sentences).")
         lines.append(personalityLine(p.personality, tr: tr))
         lines.append(tr
             ? "Kurallar: Tıbbi teşhis koyma, ilaç veya tedavi önerme. Ağrı, baş dönmesi, göğüs ağrısı gibi belirtilerde antrenmanı bırakmasını ve bir sağlık profesyoneline başvurmasını söyle. Bilmediğin bir şeyi uydurma. Kalori ve ölçüm değerlerini kesin değil tahmini olarak belirt."

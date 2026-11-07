@@ -24,7 +24,7 @@ struct SettingsView: View {
                         Button(model.t("Premium'a geç", "Go Premium")) { showPaywall = true }
                     }
                 }
-                Section("JARVIS") {
+                Section("NOVA") {
                     Picker(model.t("Dil", "Language"), selection: $profile.language) {
                         Text("Türkçe").tag(AppLanguage.turkish)
                         Text("English").tag(AppLanguage.english)
@@ -43,7 +43,7 @@ struct SettingsView: View {
                                                                                set: { v in model.updateSettings { $0.voiceGender = v; $0.voiceIdentifier = nil } })) {
                         ForEach(VoiceGenderPreference.allCases, id: \.self) { Text(model.t($0.title)).tag($0) }
                     }
-                    Toggle(model.t("JARVIS'in kendi sesi (erkek, cihazda)", "JARVIS's own voice (male, on device)"),
+                    Toggle(model.t("NOVA'nın kendi sesi (erkek, cihazda)", "NOVA's own voice (male, on device)"),
                            isOn: Binding(get: { model.data.settings.neuralVoice }, set: { v in model.updateSettings { $0.neuralVoice = v } }))
                     Toggle(model.t("Stüdyo ses işleme", "Studio voice processing"),
                            isOn: Binding(get: { model.data.settings.voiceEnhancement }, set: { v in model.updateSettings { $0.voiceEnhancement = v } }))
@@ -52,14 +52,14 @@ struct SettingsView: View {
                             .font(Theme.caption)
                     }
                     if model.voice.suggestVoiceDownload {
-                        Text(model.t("Daha doğal bir ses için iPhone Ayarlar > Erişilebilirlik > Seslendirilen İçerik > Sesler > Türkçe/English bölümünden \"Gelişmiş\" veya \"Premium\" bir ses indir. JARVIS indirilen sesi otomatik kullanır.",
-                                     "For a more natural voice, download an \"Enhanced\" or \"Premium\" voice in iPhone Settings > Accessibility > Spoken Content > Voices. JARVIS uses it automatically."))
+                        Text(model.t("Daha doğal bir ses için iPhone Ayarlar > Erişilebilirlik > Seslendirilen İçerik > Sesler > Türkçe/English bölümünden \"Gelişmiş\" veya \"Premium\" bir ses indir. NOVA indirilen sesi otomatik kullanır.",
+                                     "For a more natural voice, download an \"Enhanced\" or \"Premium\" voice in iPhone Settings > Accessibility > Spoken Content > Voices. NOVA uses it automatically."))
                             .font(Theme.caption).foregroundStyle(Theme.warning)
                     }
                     Button(model.t("Sesi dene", "Test voice")) {
-                        model.voice.say(model.t("Merhaba, ben JARVIS. Hazır olduğunda başlayalım.", "Hi, I'm JARVIS. Let's start when you're ready."), priority: .high)
+                        model.voice.say(model.t("Merhaba, ben NOVA. Hazır olduğunda başlayalım.", "Hi, I'm NOVA. Let's start when you're ready."), priority: .high)
                     }
-                    Toggle(model.t("Antrenman dışında 'Jarvis' kelimesini bekle", "Require 'Jarvis' wake word outside workouts"),
+                    Toggle(model.t("Antrenman dışında 'Nova' kelimesini bekle", "Require 'Nova' wake word outside workouts"),
                            isOn: Binding(get: { model.data.settings.requireWakeWord }, set: { v in model.updateSettings { $0.requireWakeWord = v } }))
                     if !model.voice.onDeviceRecognitionAvailable {
                         Text(model.t("Bu dil için çevrimdışı konuşma tanıma cihazda yok. Ayarlar > Genel > Klavye > Dikte'den indirebilirsin.",
@@ -89,6 +89,8 @@ struct SettingsView: View {
                 Section(model.t("Kamera ve bildirimler", "Camera & notifications")) {
                     Toggle(model.t("Ön kamerayı kullan", "Use front camera"),
                            isOn: Binding(get: { model.data.settings.useFrontCamera }, set: { v in model.updateSettings { $0.useFrontCamera = v } }))
+                    Toggle(model.t("Antrenman sesleri ve titreşim (tekrar, geri sayım, set)", "Workout tones & haptics (reps, countdown, sets)"),
+                           isOn: Binding(get: { model.data.settings.cueSounds }, set: { v in model.updateSettings { $0.cueSounds = v } }))
                     Picker(model.t("Performans", "Performance"), selection: Binding(get: { model.data.settings.performance },
                                                                                   set: { v in model.updateSettings { $0.performance = v } })) {
                         ForEach(PerformancePreference.allCases, id: \.self) { Text(model.t($0.title)).tag($0) }
@@ -101,7 +103,7 @@ struct SettingsView: View {
                            isOn: Binding(get: { model.data.settings.weeklyReport }, set: { v in model.updateSettings { $0.weeklyReport = v } }))
                 }
                 Section(model.t("Gizlilik", "Privacy")) {
-                    Button(model.t("JARVIS'in hafızası", "JARVIS memory")) { showMemory = true }
+                    Button(model.t("NOVA'nın hafızası", "NOVA memory")) { showMemory = true }
                     NavigationLink(model.t("Gizlilik politikası", "Privacy policy")) { PrivacyPolicyView() }
                     NavigationLink(model.t("Lisanslar", "Licences")) { LicensesView() }
                     Toggle(model.t("Fit Check fotoğraflarını sakla", "Keep Fit Check photos"),
@@ -112,20 +114,20 @@ struct SettingsView: View {
                     Button(model.t("Tüm verilerimi sil", "Delete all my data"), role: .destructive) { confirmDelete = true }
                 }
                 Section(model.t("Sağlık uyarısı", "Health notice")) {
-                    Text(model.t("JARVIS FIT bir tıbbi cihaz değildir, teşhis koymaz ve tedavi önermez. Kalori, ölçüm ve form değerlendirmeleri tahminidir. Yeni bir egzersiz programına başlamadan önce, özellikle bir sağlık sorunun varsa, doktoruna danış.",
-                                 "JARVIS FIT is not a medical device and does not diagnose or treat. Calorie, measurement and form feedback are estimates. Consult your doctor before starting a new exercise program, especially if you have a health condition."))
+                    Text(model.t("NOVA Coach bir tıbbi cihaz değildir, teşhis koymaz ve tedavi önermez. Kalori, ölçüm ve form değerlendirmeleri tahminidir. Yeni bir egzersiz programına başlamadan önce, özellikle bir sağlık sorunun varsa, doktoruna danış.",
+                                 "NOVA Coach is not a medical device and does not diagnose or treat. Calorie, measurement and form feedback are estimates. Consult your doctor before starting a new exercise program, especially if you have a health condition."))
                         .font(Theme.caption).foregroundStyle(Theme.textSecondary)
                 }
                 Section(model.t("Geliştirici", "Developer")) {
                     NavigationLink(model.t("Poz kayıtları (tekrar sayımı doğrulama)", "Pose recordings (rep counting validation)")) { PoseRecordingsView() }
                 }
                 Section {
-                    Text("JARVIS FIT \(LiveWorkoutController.appVersion) · \(model.t("Model", "Model")): \(model.t("Apple Vision (poz), Apple Speech, Apple Foundation Models", "Apple Vision (pose), Apple Speech, Apple Foundation Models"))")
+                    Text("NOVA Coach \(LiveWorkoutController.appVersion) · \(model.t("Model", "Model")): \(model.t("Apple Vision (poz), Apple Speech, Apple Foundation Models", "Apple Vision (pose), Apple Speech, Apple Foundation Models"))")
                         .font(Theme.caption).foregroundStyle(Theme.textSecondary)
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Theme.background.ignoresSafeArea())
+            .novaBackground()
             .navigationTitle(model.t("Ayarlar", "Settings"))
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("Kapat", "Close")) { dismiss() } } }
             .onAppear { if let p = model.profile { profile = p } }
@@ -199,8 +201,8 @@ struct MemoryView: View {
                 Section {
                     Toggle(model.t("Kişisel hafıza açık", "Personal memory on"),
                            isOn: Binding(get: { model.data.memoryEnabled }, set: { model.setMemoryEnabled($0) }))
-                    Text(model.t("JARVIS yalnızca kısa bilgileri hatırlar (sevdiğin hareketler, zorlandıkların, başarıların). Konuşmaların kaydedilmez. Hepsi bu cihazda kalır.",
-                                 "JARVIS only remembers short facts (favourite moves, struggles, achievements). Conversations are not recorded. Everything stays on this device."))
+                    Text(model.t("NOVA yalnızca kısa bilgileri hatırlar (sevdiğin hareketler, zorlandıkların, başarıların). Konuşmaların kaydedilmez. Hepsi bu cihazda kalır.",
+                                 "NOVA only remembers short facts (favourite moves, struggles, achievements). Conversations are not recorded. Everything stays on this device."))
                         .font(Theme.caption).foregroundStyle(Theme.textSecondary)
                 }
                 Section {

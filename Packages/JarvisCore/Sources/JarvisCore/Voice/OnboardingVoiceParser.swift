@@ -1,6 +1,6 @@
 import Foundation
 
-/// The onboarding questions JARVIS asks (in order).
+/// The onboarding questions NOVA asks (in order).
 public enum OnboardingTopic: Int, CaseIterable, Sendable {
     case language, nameAndCoach, goal, body, experience, equipment, schedule, health, diet, permissions
 }
@@ -74,7 +74,7 @@ public enum OnboardingVoiceParser {
             for start in normalized.indices where start + marker.count < normalized.count {
                 if Array(normalized[start..<start + marker.count]) == marker {
                     let candidate = words[start + marker.count].trimmingCharacters(in: .punctuationCharacters)
-                    let stop: Set<String> = ["de", "diyebilirsin", "the", "a", "and", "ve", "jarvis"]
+                    let stop: Set<String> = ["de", "diyebilirsin", "the", "a", "and", "ve", "jarvis", "nova"]
                     guard !candidate.isEmpty, !stop.contains(TextNormalizer.normalize(candidate)), candidate.count <= 20,
                           Double(candidate) == nil else { continue }
                     return candidate.prefix(1).uppercased() + candidate.dropFirst()

@@ -90,6 +90,11 @@ final class SpeechTextTests: XCTestCase {
         XCTAssertEqual(tr("10 squat"), "on skuat")
         XCTAssertEqual(en("Hi, I'm JARVIS."), "Hi, I'm Jarvis.")
         XCTAssertEqual(en("Next: squat"), "Next: squat")
+        XCTAssertEqual(tr("Merhaba, ben NOVA."), "Merhaba, ben Nova.")
+        XCTAssertEqual(tr("NOVA'nın hafızası"), "Novanın hafızası")
+        XCTAssertEqual(tr("NOVA Coach'a hoş geldin"), "Nova Koça hoş geldin")
+        XCTAssertEqual(en("Hi, I'm NOVA."), "Hi, I'm Nova.")
+        XCTAssertEqual(en("Welcome to NOVA Coach"), "Welcome to Nova Coach")
     }
 
     func testMarkdownEmojiAndLines() {
